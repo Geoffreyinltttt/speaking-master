@@ -265,22 +265,22 @@ stopListening() {
     if (!recordBtn) return;
     
     if (this.isListening) {
-        recordBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
-            </svg>
-            停止錄音
-        `;
-        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-    } else {
-        recordBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-            </svg>
-            開始錄音
-        `;
-        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-    }
+    recordBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+        </svg>
+        <span>停止</span>
+    `;
+    recordBtn.className = 'btn-record-stop';
+} else {
+    recordBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+        </svg>
+        <span>錄音</span>
+    `;
+    recordBtn.className = 'btn-record-start';
+}
 }
     
 updateTranscriptDisplay() {
@@ -330,20 +330,21 @@ updateTranscriptDisplay() {
     }
     
     getCurrentPracticeText() {
-        if (this.currentScreen === 'practiceScreen') {
-            const item = this.getCurrentItem();
-            if (!item) return '';
-            
-            if ('sentences' in item) {
-                return item.sentences[this.currentPartIndex] || '';
-            }
-            return item.example || '';
-        } else if (this.currentScreen === 'challengeScreen') {
-            const question = this.challengeQuestions[this.currentQuestionIndex];
-            return typeof question === 'string' ? question : question.example;
+    if (this.currentScreen === 'practiceScreen') {
+        const item = this.getCurrentItem();
+        if (!item) return '';
+        
+        if ('sentences' in item) {
+            return item.sentences[this.currentPartIndex] || '';
         }
-        return '';
+        return item.example || '';
+    } else if (this.currentScreen === 'challengeScreen') {
+        const question = this.challengeQuestions[this.currentQuestionIndex];
+        return question.practiceText || '';
     }
+    return '';
+}
+
     
     getCurrentItem() {
         const list = this.getCurrentList();
@@ -743,18 +744,43 @@ function navigatePart(direction) {
 }
 
 // 挑戰模式功能
-function startChallenge(contentType) {
+function startChallenge() {
     app.mode = 'challenge';
-    app.contentType = contentType;
+    app.contentType = 'mixed'; // 混合模式
     
+    // 收集所有內容並標記類型
     let allItems = [];
-    if (contentType === 'vocabulary') {
-        allItems = vocabulary;
-    } else if (contentType === 'idioms') {
-        allItems = idioms;
-    } else {
-        allItems = passages.flatMap(p => p.sentences);
-    }
+    
+    // 加入單字
+    vocabulary.forEach(item => {
+        allItems.push({
+            ...item,
+            type: 'vocabulary',
+            practiceText: item.example
+        });
+    });
+    
+    // 加入片語
+    idioms.forEach(item => {
+        allItems.push({
+            ...item,
+            type: 'idioms',
+            practiceText: item.example
+        });
+    });
+    
+    // 加入句子
+    passages.forEach(passage => {
+        passage.sentences.forEach(sentence => {
+            allItems.push({
+                id: passage.id + '_sentence',
+                type: 'passage',
+                practiceText: sentence,
+                translation: passage.translation,
+                audio: passage.audio
+            });
+        });
+    });
     
     // 隨機選擇10個題目
     const shuffled = allItems.sort(() => 0.5 - Math.random());
@@ -766,57 +792,57 @@ function startChallenge(contentType) {
     updateChallengeScreen();
 }
 
+
 function updateChallengeScreen() {
     const challengeProgress = document.getElementById('challengeProgress');
     challengeProgress.textContent = `問題 ${app.currentQuestionIndex + 1} / ${app.challengeQuestions.length}`;
     
     // 清理並重新創建練習單元
     const challengeScreen = document.getElementById('challengeScreen');
-    const existingUnit = challengeScreen.querySelector('.bg-slate-700\\/50');
+    const existingUnit = challengeScreen.querySelector('.challenge-practice-unit');
     if (existingUnit) {
         existingUnit.remove();
     }
     
     const currentQuestion = app.challengeQuestions[app.currentQuestionIndex];
-    const practiceText = app.getCurrentPracticeText();
-    const audioFile = (typeof currentQuestion === 'object' && currentQuestion.audio) ? currentQuestion.audio : '';
+    const practiceText = currentQuestion.practiceText;
+    const audioFile = currentQuestion.audio || '';
+    
+    // 獲取題目類型的中文名稱
+    const typeNames = {
+        'vocabulary': '單字',
+        'idioms': '片語',
+        'passage': '句子'
+    };
+    const typeName = typeNames[currentQuestion.type] || '題目';
     
     // 創建挑戰練習單元
     const practiceUnit = document.createElement('div');
-    practiceUnit.className = 'bg-slate-700/50 p-6 rounded-lg border border-slate-600 space-y-4';
+    practiceUnit.className = 'challenge-practice-unit space-y-8';
     practiceUnit.innerHTML = `
-        <div>
-            <h3 class="text-lg font-semibold text-sky-300 mb-2">請朗讀以下內容：</h3>
-            <div class="flex items-center justify-between gap-4 bg-slate-900/70 p-4 rounded-md">
-                <div id="challengeText" class="text-2xl text-white font-medium flex-grow">
-    ${practiceText}
-    ${(typeof currentQuestion === 'object' && currentQuestion.translation) ? 
-        `<div class="text-slate-400 text-lg mt-2 font-normal">${currentQuestion.translation}</div>` : ''}
-</div>
-
-                <button onclick="speakText('${practiceText.replace(/'/g, "\\'")}', '${audioFile}')" class="p-2 rounded-full text-sky-300 hover:text-sky-200 hover:bg-slate-700 transition-colors flex-shrink-0" title="聆聽發音">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    </svg>
-                </button>
+        <!-- 練習文字卡片 -->
+        <div class="glass-secondary rounded-3xl p-8 border border-white/10">
+            <div class="text-center space-y-6">
+                <div class="text-sm text-sky-300 font-medium">${typeName}</div>
+                <div id="challengeTitle" class="text-3xl sm:text-4xl font-bold mb-4 leading-relaxed">${practiceText}</div>
+                ${currentQuestion.translation ? `<div class="translation-text">${currentQuestion.translation}</div>` : ''}
+                <div class="flex justify-center items-center gap-4">
+                    <button onclick="speakText('${practiceText.replace(/'/g, "\\'")}', '${audioFile}')" class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 transition-all duration-300 hover:scale-110" title="聆聽發音">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                    </button>
+                    <button id="recordBtn" onclick="toggleRecording()" class="inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+                        </svg>
+                        開始錄音
+                    </button>
+                </div>
             </div>
         </div>
-
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h3 class="text-lg font-semibold text-sky-300">你的回答：</h3>
-            <button id="recordBtn" onclick="toggleRecording()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-                </svg>
-                開始錄音
-            </button>
-        </div>
         
-        <div id="transcriptArea" class="min-h-[100px] bg-slate-900/70 p-4 rounded-md border border-slate-600 text-slate-200 text-xl">
-            <p class="italic text-slate-400">點擊 "開始錄音" 後開始說話...</p>
-        </div>
-        
-        <button id="nextBtn" onclick="nextChallenge()" class="hidden w-full flex items-center justify-center gap-2 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-lg shadow-lg transition-all duration-300">
+        <button id="nextBtn" onclick="nextChallenge()" class="hidden w-full flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
             下一題
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -826,11 +852,27 @@ function updateChallengeScreen() {
     
     challengeScreen.appendChild(practiceUnit);
     
+    // 設置文字的 data-word-index 屬性，讓顏色變化系統能運作
+    const challengeTitle = document.getElementById('challengeTitle');
+    const words = practiceText.split(' ');
+    if (currentQuestion.type === 'vocabulary' || currentQuestion.type === 'idioms') {
+        // 單字和片語：一個整體
+        challengeTitle.innerHTML = `<span class="word-default" data-word-index="0">${practiceText}</span>`;
+    } else {
+        // 句子：逐字分解
+        const wordsHtml = words.map((word, index) => 
+            `<span class="word-default" data-word-index="${index}">${word}</span>`
+        ).join(' ');
+        challengeTitle.innerHTML = wordsHtml + (currentQuestion.translation ? `<div class="translation-text">${currentQuestion.translation}</div>` : '');
+    }
+    
     // 重置狀態
-app.transcript = '';
-app.comparisonResult = null;
-app.updateRecordButton();
+    app.transcript = '';
+    app.comparisonResult = null;
+    app.resetWordColors();
+    app.updateRecordButton();
 }
+
 
 function nextChallenge() {
     // 記錄答案
@@ -902,45 +944,45 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.getElementById('challengeMode').addEventListener('click', () => {
-        if (!dataLoaded) {
-            alert('數據尚未載入完成，請稍候');
-            return;
-        }
-        app.mode = 'challenge';
-        document.getElementById('contentModeTitle').textContent = '挑戰模式';
-        showScreen('contentTypeSelection');
-    });
+    if (!dataLoaded) {
+        alert('數據尚未載入完成，請稍候');
+        return;
+    }
+    app.mode = 'challenge';
+    startChallenge(); // 直接開始挑戰，不需要選擇內容類型
+});
     
     // 內容類型選擇
-    document.getElementById('vocabularyType').addEventListener('click', () => {
-        app.contentType = 'vocabulary';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge('vocabulary');
-        }
-    });
-    
-    document.getElementById('idiomsType').addEventListener('click', () => {
-        app.contentType = 'idioms';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge('idioms');
-        }
-    });
-    
-    document.getElementById('passageType').addEventListener('click', () => {
-        app.contentType = 'passage';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge('passage');
-        }
-    });
+document.getElementById('vocabularyType').addEventListener('click', () => {
+    app.contentType = 'vocabulary';
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
+
+document.getElementById('idiomsType').addEventListener('click', () => {
+    app.contentType = 'idioms';
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
+
+document.getElementById('passageType').addEventListener('click', () => {
+    app.contentType = 'passage';
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
+
     
     // 導航按鈕
     document.getElementById('homeBtn').addEventListener('click', () => showScreen('modeSelection'));
