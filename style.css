@@ -816,3 +816,26 @@ body::before {
         animation: none;
     }
 }
+
+/* 接近正確的單字樣式 */
+.close-word {
+    color: #fbbf24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.extra-word {
+    color: #a78bfa;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.05));
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
