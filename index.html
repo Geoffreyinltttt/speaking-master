@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>口說大師</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen bg-slate-900 text-white font-sans">
+    <div class="min-h-screen flex flex-col items-center p-4 sm:p-6">
+        <!-- Header -->
+        <header class="w-full max-w-4xl flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <div class="logo-icon text-sky-400">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-sky-400">
+                        <path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 12C8 11.4696 8.21071 10.9609 8.58579 10.5858C8.96086 10.2107 9.46957 10 10 10C10.5304 10 11.0391 10.2107 11.4142 10.5858C11.7893 10.9609 12 11.4696 12 12V16C12 15.4696 11.7893 14.9609 11.4142 14.5858C11.0391 14.2107 10.5304 14 10 14C9.46957 14 8.96086 14.2107 8.58579 14.5858C8.21071 14.9609 8 15.4696 8 16V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 12C12 11.4696 12.2107 10.9609 12.5858 10.5858C12.9609 10.2107 13.4696 10 14 10C14.5304 10 15.0391 10.2107 15.4142 10.5858C15.7893 10.9609 16 11.4696 16 12V16C16 15.4696 15.7893 14.9609 15.4142 14.5858C15.0391 14.2107 14.5304 14 14 14C13.4696 14 12.9609 14.2107 12.5858 14.5858C12.2107 14.9609 12 15.4696 12 16V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 9.5V8.5C8 7.94772 8.44772 7.5 9 7.5H15C15.5523 7.5 16 7.94772 16 8.5V9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl text-heading text-sky-400">口說大師</h1>
+            </div>
+            <button id="homeBtn" class="hidden flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg shadow-md transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span class="hidden sm:inline">主選單</span>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="w-full max-w-4xl flex-grow flex flex-col items-center">
+            <div class="w-full glass-primary rounded-3xl p-6 sm:p-8">
+                
+                <!-- Loading Screen -->
+<div id="loadingScreen" class="screen text-center">
+    <h2 class="text-3xl text-heading mb-2 text-white">載入學習內容</h2>
+    <p class="text-slate-300 mb-8">正在載入 學習資源...</p>
+    
+    <div class="flex flex-col items-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-400 mb-4"></div>
+        <p class="text-slate-300" id="loadingStatus">正在讀取 data.xlsx...</p>
+    </div>
+    
+    <div id="loadError" class="hidden mt-6 p-4 bg-red-900/50 border border-red-600 rounded-lg">
+        <h3 class="text-red-400 font-bold mb-2">載入失敗</h3>
+        <p class="text-red-300" id="errorMessage">無法載入 data.xlsx 檔案</p>
+        <button onclick="loadDataFromFile()" class="mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-all">
+            重新載入
+        </button>
+    </div>
+</div>
+
+                <!-- Mode Selection Screen -->
+                <div id="modeSelection" class="screen text-center">
+                    <h2 class="text-4xl text-display mb-2 text-white">歡迎！</h2>
+                    <p class="text-slate-300 mb-8">請選擇您想進行的模式</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <button id="practiceMode" class="card-mode p-6 text-left">
+    <div class="card-header">
+        <div class="text-sky-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-5.998 12.078 12.078 0 01.665-6.479L12 14z" />
+            </svg>
+        </div>
+        <h3 class="text-2xl text-heading text-white">練習模式</h3>
+    </div>
+    <p class="card-description">選擇特定單字或課文，依自己的步調重複練習。</p>
+</button>
+
+                        <button id="challengeMode" class="card-mode p-6 text-left">
+    <div class="card-header">
+        <div class="text-sky-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M16 17v4m-2-2h4m5-11l-1-1m1 1l-1-1m-4 0h.01M19 12h.01M12 21h.01M4.22 18.36l1.42-1.42M18.36 4.22l1.42 1.42M12 8a4 4 0 100-8 4 4 0 000 8zM3 21a4 4 0 100-8 4 4 0 000 8z" />
+            </svg>
+        </div>
+        <h3 class="text-2xl text-heading text-white">挑戰模式</h3>
+    </div>
+    <p class="card-description">在隨機測驗中測試您的學習成效。</p>
+</button>
+                    </div>
+                </div>
+
+                <!-- Content Type Selection Screen -->
+                <div id="contentTypeSelection" class="screen hidden">
+    <div class="flex justify-between items-start mb-6">
+    <button id="backToMode" class="text-slate-300 hover:text-white transition-colors" title="返回模式選擇">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+    </button>
+    <div class="flex-grow text-center">
+        <h2 id="contentModeTitle" class="text-4xl text-display mb-2 text-white">練習模式</h2>
+        <p class="text-slate-300">請選擇要練習的內容類型</p>
+    </div>
+    <div class="w-6"></div> <!-- 用來平衡左側按鈕，保持標題居中 -->
+</div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                        <button id="vocabularyType" class=“card-mode p-6 text-left”>
+                            <div class=“card-header”>
+                                <div class="text-sky-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m4 13-4-4-4 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-2xl text-heading text-white">單字</h3>
+                            </div>
+                            <p class=“card-description”>練習發音和單字用法</p>
+                        </button>
+                        <button id="idiomsType" class=“card-mode p-6 text-left”>
+                            <div class=“card-header”>
+                                <div class="text-sky-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-2xl text-heading text-white">片語</h3>
+                            </div>
+                            <p class=“card-description”>練習慣用語和片語</p>
+                        </button>
+                        <button id="passageType" class=“card-mode p-6 text-left”>
+                            <div class=“card-header”>
+                                <div class="text-sky-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-2xl text-heading text-white">課文</h3>
+                            </div>
+                            <p class=“card-description”>練習流暢地朗讀句子</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List View Screen -->
+<div id="listView" class="screen hidden">
+    <div class="flex justify-between items-start mb-6">
+    <button id="backToContentType" class="text-slate-300 hover:text-white transition-colors" title="返回內容選擇">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+    </button>
+    <div class="flex-grow text-center">
+        <h2 id="listTitle" class="text-3xl text-heading text-white mb-2">單字列表</h2>
+        <p class="text-slate-400">選擇項目開始練習</p>
+    </div>
+    <div class="w-6"></div> <!-- 用來平衡左側按鈕，保持標題居中 -->
+</div>
+    
+    <!-- iOS 風格列表容器 -->
+    <div class="space-y-1">
+        <div id="allItemsList" class="list-container"></div>
+    </div>
+</div>
+
+
+                <!-- Practice Screen -->
+                <div id="practiceScreen" class="screen hidden">
+                    <div class="flex justify-between items-start mb-8">
+<div class="flex items-center">
+    <button id="backToList" class="text-slate-300 hover:text-white transition-colors" title="返回列表">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+        </svg>
+    </button>
+</div>
+<p id="practiceSubtitle" class="text-caption text-slate-400 hidden text-center flex-grow"></p>
+<div class="w-6"></div>
+</div>
+
+                    
+                    <!-- Practice Unit -->
+<div class="space-y-8">
+    <!-- 練習文字卡片 -->
+<div class="glass-secondary rounded-3xl p-8 border border-white/10">
+    <div class="text-center space-y-6">
+        <h2 id="practiceTitle" class="text-3xl sm:text-4xl text-sky-400 font-bold mb-4">練習項目</h2>
+        <button id="speakBtn" class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 transition-all duration-300 hover:scale-110" title="聆聽發音">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+        </svg>
+    </button>
+</div>
+</div>
+
+    <!-- 錄音區域 -->
+    <div class="glass-secondary rounded-3xl p-8 border border-white/10 space-y-6">
+        <div class="text-center">
+            <button id="recordBtn" class="inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+                </svg>
+                開始錄音
+            </button>
+        </div>
+        
+        <div id="transcriptArea" class="min-h-[120px] bg-black/20 backdrop-blur-sm p-6 rounded-2xl border border-white/5 text-slate-200 text-xl">
+            <p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>
+        </div>
+    </div>
+    
+    <button id="nextBtn" class="hidden w-full flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
+        下一題
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+    </button>
+</div>
+
+                    <!-- Navigation -->
+<div class="flex justify-between items-center mt-6 gap-3">
+    <button id="prevBtn" class="nav-button flex items-center justify-center gap-1 flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-lg shadow-md transition-all duration-300">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span class="text-sm">PREV</span>
+    </button>
+    
+    <div id="partNavigation" class="hidden flex items-center gap-2 flex-1">
+        <button id="prevPartBtn" class="nav-button flex items-center justify-center gap-1 flex-1 px-2 py-2 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-lg shadow-md transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span class="text-sm">UP</span>
+        </button>
+        <button id="nextPartBtn" class="nav-button flex items-center justify-center gap-1 flex-1 px-2 py-2 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-lg shadow-md transition-all duration-300">
+            <span class="text-sm">DOWN</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+    </div>
+    
+    <button id="nextItemBtn" class="nav-button flex items-center justify-center gap-1 flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-lg shadow-md transition-all duration-300">
+        <span class="text-sm">NEXT</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+    </button>
+</div>
+                </div>
+
+                <!-- Challenge Screen -->
+                <div id="challengeScreen" class="screen hidden">
+                    <h2 class="text-2xl text-heading mb-1 text-sky-400">挑戰模式</h2>
+                    <p id="challengeProgress" class="text-slate-400 mb-4">問題 1 / 10</p>
+                    <!-- Challenge practice unit will be inserted here -->
+                </div>
+
+                <!-- Challenge Result Screen -->
+                <div id="challengeResult" class="screen hidden text-center">
+                    <h2 class="text-3xl text-heading mb-2 text-sky-400">挑戰完成！</h2>
+                    <p id="averageScore" class="text-5xl font-bold my-4">0 <span class="text-2xl text-slate-400">平均分</span></p>
+                    <p id="correctCount" class="text-slate-300 mb-8">您答對了 0 / 10 題。</p>
+
+                    <div class="text-left bg-slate-900/50 p-4 rounded-lg mt-6 max-h-60 overflow-y-auto">
+                        <h3 class="text-xl font-semibold mb-3 text-amber-400">詳細結果</h3>
+                        <ul id="resultsList" class="space-y-2"></ul>
+                    </div>
+                    
+                    <div class="flex justify-center gap-4 mt-8">
+                        <button id="backToMainBtn" class="px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg shadow-lg transition-all">
+                            返回主選單
+                        </button>
+                        <button id="retryChallengeBtn" class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-lg shadow-lg transition-all">
+                            再挑戰一次
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="w-full max-w-3xl text-center text-slate-500 mt-8 text-sm">
+            <p>&copy; 2024 口說大師. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
