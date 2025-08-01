@@ -285,7 +285,10 @@ stopListening() {
     
 updateTranscriptDisplay() {
     const transcriptArea = document.getElementById('transcriptArea');
-    if (!transcriptArea) return;
+    if (!transcriptArea) {
+        // 如果沒有找到轉錄區域，可能是在列表頁面，直接返回
+        return;
+    }
     
     if (this.comparisonResult) {
         transcriptArea.innerHTML = this.comparisonResult.html;
@@ -789,13 +792,58 @@ resetWordColors() {
     });
 }
 
-} // AppState 類別結束
+
+
+// 重置單字顏色
+resetWordColors() {
+    document.querySelectorAll('[data-word-index]').forEach(span => {
+        span.className = 'word-default';
+    });
+}
+
+// 在這裡加入新的方法
+resetAllStates() {
+    // 停止語音識別
+    if (this.isListening) {
+        this.stopListening();
+    }
+    
+    // 重置語音相關狀態
+    this.transcript = '';
+    this.interimTranscript = '';
+    this.comparisonResult = null;
+    
+    // 重置索引
+    this.currentIndex = 0;
+    this.currentPartIndex = 0;
+    
+    // 清理 DOM 中的反饋
+    const oldFeedback = document.getElementById('detailedFeedback');
+    if (oldFeedback) oldFeedback.remove();
+    
+    // 重置錄音按鈕
+    this.updateRecordButton();
+    
+    // 重置單字顏色
+    this.resetWordColors();
+}
+
+} // ← AppState 類別的結束括號
 
 // 全域應用狀態
 const app = new AppState();
 
 // 螢幕管理
 function showScreen(screenId) {
+    // 清理所有反饋內容（不管切換到哪個螢幕）
+    const oldFeedback = document.getElementById('detailedFeedback');
+    if (oldFeedback) oldFeedback.remove();
+    
+    // 如果要切換到非練習螢幕，停止語音識別
+    if (screenId !== 'practiceScreen' && screenId !== 'challengeScreen' && app.isListening) {
+        app.stopListening();
+    }
+    
     // 隱藏所有螢幕
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.add('hidden');
@@ -874,8 +922,19 @@ function speakWithTTS(text) {
 
 // 列表渲染功能
 function renderList() {
+    // 清理之前的反饋內容
+    const oldFeedback = document.getElementById('detailedFeedback');
+    if (oldFeedback) oldFeedback.remove();
+    
+    // 重置應用狀態
+    app.transcript = '';
+    app.comparisonResult = null;
+    app.currentIndex = 0;
+    app.currentPartIndex = 0;
+    
     const allItemsList = document.getElementById('allItemsList');
     const listTitle = document.getElementById('listTitle');
+
     
     // 更新標題
     const titleMap = {
@@ -919,11 +978,22 @@ allItemsList.innerHTML = allItems.map((item, index) => {
 
 // 開始練習
 function startPractice(index, from = 'list') {
+    // 清理之前的反饋內容
+    const oldFeedback = document.getElementById('detailedFeedback');
+    if (oldFeedback) oldFeedback.remove();
+    
+    // 重置所有相關狀態
     app.currentIndex = index;
     app.currentPartIndex = 0;
     app.from = from;
     app.transcript = '';
+    app.interimTranscript = '';
     app.comparisonResult = null;
+    
+    // 停止任何進行中的語音識別
+    if (app.isListening) {
+        app.stopListening();
+    }
     
     showScreen('practiceScreen');
     updatePracticeScreen();
@@ -932,6 +1002,10 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
+    // 清理之前的反饋內容
+    const oldFeedback = document.getElementById('detailedFeedback');
+    if (oldFeedback) oldFeedback.remove();
+    
     const item = app.getCurrentItem();
     if (!item) return;
     
@@ -1239,8 +1313,9 @@ document.addEventListener('DOMContentLoaded', function() {
     startChallenge(); // 直接開始挑戰，不需要選擇內容類型
 });
     
-    // 內容類型選擇
+// 內容類型選擇
 document.getElementById('vocabularyType').addEventListener('click', () => {
+    app.resetAllStates(); // ← 加入這一行
     app.contentType = 'vocabulary';
     if (app.mode === 'practice') {
         showScreen('listView');
@@ -1251,6 +1326,7 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
 });
 
 document.getElementById('idiomsType').addEventListener('click', () => {
+    app.resetAllStates(); // ← 加入這一行
     app.contentType = 'idioms';
     if (app.mode === 'practice') {
         showScreen('listView');
@@ -1261,6 +1337,7 @@ document.getElementById('idiomsType').addEventListener('click', () => {
 });
 
 document.getElementById('passageType').addEventListener('click', () => {
+    app.resetAllStates(); // ← 加入這一行
     app.contentType = 'passage';
     if (app.mode === 'practice') {
         showScreen('listView');
@@ -1269,7 +1346,6 @@ document.getElementById('passageType').addEventListener('click', () => {
         startChallenge(); // 挑戰模式不分類型
     }
 });
-
     
     // 導航按鈕
     document.getElementById('homeBtn').addEventListener('click', () => showScreen('modeSelection'));
