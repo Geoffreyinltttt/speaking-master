@@ -322,6 +322,11 @@ updateTranscriptDisplay() {
         
         this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
         this.updateTranscriptDisplay();
+		
+// 顯示詳細回饋
+if (this.comparisonResult.details && this.comparisonResult.details.length > 0) {
+    this.showDetailedFeedback(this.comparisonResult.details);
+}
         
         // 如果是挑戰模式，顯示下一題按鈕
         if (this.currentScreen === 'challengeScreen') {
@@ -364,53 +369,176 @@ getCurrentList() {
     
     // 文字比對和著色功能
     compareAndColorize(original, spoken) {
-        const originalWords = this.getWords(original);
-        const spokenWords = this.getWords(spoken);
-        
-        if (spokenWords.length === 0) {
-            return { 
-                html: '<span class="text-slate-400">請開始說話...</span>', 
-                isCorrect: false, 
-                score: 0 
-            };
-        }
-        
-        let correctWordCount = 0;
-        const resultNodes = [];
-        const maxLength = Math.max(originalWords.length, spokenWords.length);
-        
-        for (let i = 0; i < maxLength; i++) {
-            const originalWord = originalWords[i];
-            const spokenWord = spokenWords[i];
-            
-            if (originalWord && spokenWord) {
-                if (originalWord === spokenWord) {
-                    correctWordCount++;
-                    resultNodes.push(`<span class="correct-word">${spokenWord} </span>`);
-                } else {
-                    resultNodes.push(`<span class="incorrect-word">${spokenWord}</span>`);
-                    resultNodes.push(`<span class="correct-word"> (${originalWord}) </span>`);
-                }
-            } else if (spokenWord) {
-                resultNodes.push(`<span class="incorrect-word">${spokenWord} </span>`);
-            } else if (originalWord) {
-                resultNodes.push(`<span class="missing-word">(${originalWord}) </span>`);
-            }
-        }
-        
-        const isCorrect = originalWords.length > 0 && 
-                         originalWords.length === spokenWords.length && 
-                         correctWordCount === originalWords.length;
-        
-        const score = originalWords.length > 0 ? 
-                     Math.round((correctWordCount / originalWords.length) * 100) : 0;
-        
+    const originalWords = this.getWords(original);
+    const spokenWords = this.getWords(spoken);
+    
+    if (spokenWords.length === 0) {
         return { 
-            html: resultNodes.join(''), 
-            isCorrect, 
-            score 
+            html: '<span class="text-slate-400">請開始說話...</span>', 
+            isCorrect: false, 
+            score: 0,
+            details: []
         };
     }
+    
+    let correctWordCount = 0;
+    const resultNodes = [];
+    const details = [];
+    const maxLength = Math.max(originalWords.length, spokenWords.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+        const originalWord = originalWords[i];
+        const spokenWord = spokenWords[i];
+        
+        if (originalWord && spokenWord) {
+            // 使用更寬鬆的比對規則
+            const similarity = this.calculateWordSimilarity(originalWord, spokenWord);
+            
+            if (similarity >= 0.7) { // 70% 相似度就算正確
+                correctWordCount++;
+                resultNodes.push(`<span class="correct-word" title="相似度: ${Math.round(similarity * 100)}%">${spokenWord} </span>`);
+                details.push({
+                    type: 'correct',
+                    original: originalWord,
+                    spoken: spokenWord,
+                    similarity: similarity,
+                    message: `✓ "${spokenWord}" 發音正確 (相似度: ${Math.round(similarity * 100)}%)`
+                });
+            } else if (similarity >= 0.4) { // 40-70% 算接近
+                correctWordCount += 0.7; // 給予部分分數
+                resultNodes.push(`<span class="close-word" title="相似度: ${Math.round(similarity * 100)}%">${spokenWord}</span>`);
+                resultNodes.push(`<span class="correct-word"> (標準: ${originalWord}) </span>`);
+                details.push({
+                    type: 'close',
+                    original: originalWord,
+                    spoken: spokenWord,
+                    similarity: similarity,
+                    message: `~ "${spokenWord}" 接近正確，標準發音是 "${originalWord}" (相似度: ${Math.round(similarity * 100)}%)`
+                });
+            } else {
+                resultNodes.push(`<span class="incorrect-word" title="相似度: ${Math.round(similarity * 100)}%">${spokenWord}</span>`);
+                resultNodes.push(`<span class="correct-word"> (標準: ${originalWord}) </span>`);
+                details.push({
+                    type: 'incorrect',
+                    original: originalWord,
+                    spoken: spokenWord,
+                    similarity: similarity,
+                    message: `✗ "${spokenWord}" 與標準 "${originalWord}" 差異較大 (相似度: ${Math.round(similarity * 100)}%)`
+                });
+            }
+        } else if (spokenWord) {
+            resultNodes.push(`<span class="extra-word" title="多餘的單字">${spokenWord} </span>`);
+            details.push({
+                type: 'extra',
+                spoken: spokenWord,
+                message: `? 多說了 "${spokenWord}"，這個單字不在原文中`
+            });
+        } else if (originalWord) {
+            resultNodes.push(`<span class="missing-word" title="遺漏的單字">(${originalWord}) </span>`);
+            details.push({
+                type: 'missing',
+                original: originalWord,
+                message: `! 遺漏了 "${originalWord}"，記得要說出這個單字`
+            });
+        }
+    }
+    
+    // 更寬鬆的判定標準
+    const accuracy = originalWords.length > 0 ? (correctWordCount / originalWords.length) : 0;
+    const isCorrect = accuracy >= 0.8; // 80% 準確度就算通過
+    const score = Math.round(accuracy * 100);
+    
+    return { 
+        html: resultNodes.join(''), 
+        isCorrect, 
+        score,
+        details
+    };
+}
+
+// 計算兩個單字的相似度（Levenshtein 距離 + 語音相似度）
+calculateWordSimilarity(word1, word2) {
+    // 預處理：統一大小寫，移除標點
+    const clean1 = word1.toLowerCase().replace(/[^\w]/g, '');
+    const clean2 = word2.toLowerCase().replace(/[^\w]/g, '');
+    
+    // 完全相同
+    if (clean1 === clean2) return 1.0;
+    
+    // 計算編輯距離
+    const editDistance = this.levenshteinDistance(clean1, clean2);
+    const maxLength = Math.max(clean1.length, clean2.length);
+    const editSimilarity = 1 - (editDistance / maxLength);
+    
+    // 語音相似度（常見的語音混淆）
+    const phoneticSimilarity = this.getPhoneticSimilarity(clean1, clean2);
+    
+    // 綜合相似度（編輯距離權重 60%，語音相似度權重 40%）
+    return (editSimilarity * 0.6) + (phoneticSimilarity * 0.4);
+}
+
+// Levenshtein 距離算法
+levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
+}
+
+// 語音相似度檢測
+getPhoneticSimilarity(word1, word2) {
+    // 常見的語音混淆模式
+    const phoneticPatterns = [
+        // 母音混淆
+        ['a', 'e'], ['e', 'i'], ['i', 'o'], ['o', 'u'],
+        // 子音混淆
+        ['b', 'p'], ['d', 't'], ['g', 'k'], ['v', 'f'], ['z', 's'],
+        ['th', 's'], ['th', 'f'], ['l', 'r'], ['n', 'm'],
+        // 常見省略
+        ['ed', 'd'], ['ing', 'in'], ['tion', 'shun']
+    ];
+    
+    let similarity = 0;
+    
+    // 檢查是否有常見的語音替換
+    for (const [sound1, sound2] of phoneticPatterns) {
+        if ((word1.includes(sound1) && word2.includes(sound2)) ||
+            (word1.includes(sound2) && word2.includes(sound1))) {
+            similarity += 0.3;
+        }
+    }
+    
+    // 檢查首字母和尾字母
+    if (word1[0] === word2[0]) similarity += 0.2;
+    if (word1[word1.length - 1] === word2[word2.length - 1]) similarity += 0.2;
+    
+    // 檢查長度相似度
+    const lengthSimilarity = 1 - Math.abs(word1.length - word2.length) / Math.max(word1.length, word2.length);
+    similarity += lengthSimilarity * 0.3;
+    
+    return Math.min(similarity, 1.0);
+}
     
 getWords(text) {
     return text
