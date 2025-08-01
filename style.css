@@ -839,3 +839,40 @@ body::before {
     -webkit-backdrop-filter: blur(5px);
     border: 1px solid rgba(167, 139, 250, 0.2);
 }
+
+/* 詳細反饋樣式 */
+#detailedFeedback {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 更友善的單字狀態顏色 */
+.word-close {
+    color: #fbbf24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1));
+    padding: 2px 6px;
+    border-radius: 6px;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.word-almost {
+    color: #34d399;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(52, 211, 153, 0.05));
+    padding: 2px 6px;
+    border-radius: 6px;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+}
