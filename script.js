@@ -174,7 +174,7 @@ if (this.recognition.webkitSpeechRecognition) {
 }
 
         
-        this.recognition.onresult = (event) => {
+this.recognition.onresult = (event) => {
     let finalTranscript = '';
     let interim = '';
     
@@ -195,9 +195,10 @@ if (this.recognition.webkitSpeechRecognition) {
     this.interimTranscript = interim;
     this.transcript += finalTranscript;
     
-    // 即時更新顯示
-    this.updateTranscriptDisplay();
+    // 即時更新文字顏色
+    this.updateWordColors();
 };
+
 
         
         this.recognition.onerror = (event) => {
@@ -230,52 +231,57 @@ if (this.recognition.webkitSpeechRecognition) {
     }
     
     startListening() {
-        if (!this.recognition || this.isListening) return;
-        
-        this.transcript = '';
-        this.interimTranscript = '';
-        this.comparisonResult = null;
-        
-        try {
-            this.recognition.start();
-            this.isListening = true;
-            this.updateRecordButton();
-            this.updateTranscriptDisplay();
-        } catch (e) {
-            console.error('語音辨識無法啟動:', e);
-        }
-    }
+    if (!this.recognition || this.isListening) return;
     
-    stopListening() {
-        if (!this.recognition || !this.isListening) return;
-        
-        this.recognition.stop();
-        this.isListening = false;
+    this.transcript = '';
+    this.interimTranscript = '';
+    this.comparisonResult = null;
+    this.resetWordColors();
+    
+    try {
+        this.recognition.start();
+        this.isListening = true;
         this.updateRecordButton();
+    } catch (e) {
+        console.error('語音辨識無法啟動:', e);
     }
+}
+
+stopListening() {
+    if (!this.recognition || !this.isListening) return;
+    
+    this.recognition.stop();
+    this.isListening = false;
+    this.updateRecordButton();
+    
+    // 最終更新顏色
+    setTimeout(() => {
+        this.updateWordColors();
+    }, 100);
+}
     
     updateRecordButton() {
-        const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) return;
-        
-        if (this.isListening) {
-            recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
-                </svg>
-                停止錄音
-            `;
-            recordBtn.className = 'w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 btn-record recording rounded-lg text-white font-bold';
-        } else {
-            recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-                </svg>
-                開始錄音
-            `;
-            recordBtn.className = 'w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 btn-record rounded-lg text-white font-bold';
-        }
+    const recordBtn = document.getElementById('recordBtn');
+    if (!recordBtn) return;
+    
+    if (this.isListening) {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+            </svg>
+            停止錄音
+        `;
+        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+    } else {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+            </svg>
+            開始錄音
+        `;
+        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
     }
+}
     
 updateTranscriptDisplay() {
     const transcriptArea = document.getElementById('transcriptArea');
@@ -405,14 +411,97 @@ getCurrentList() {
         };
     }
     
-    getWords(text) {
-        return text
-            .toLowerCase()
-            .replace(/[.,?!;:]/g, '')
-            .split(/\s+/)
-            .filter(Boolean);
+getWords(text) {
+    return text
+        .toLowerCase()
+        .replace(/[.,?!;:]/g, '')
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
+// 即時更新單字顏色
+updateWordColors() {
+    const practiceText = this.getCurrentPracticeText();
+    if (!practiceText) return;
+    
+    const originalWords = this.getWords(practiceText);
+    const spokenText = this.transcript + ' ' + this.interimTranscript;
+    const spokenWords = this.getWords(spokenText.trim());
+    
+    // 重置所有單字為預設狀態
+    document.querySelectorAll('[data-word-index]').forEach(span => {
+        span.className = 'word-default';
+    });
+    
+    // 根據內容類型決定更新策略
+    if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
+        // 單字和片語：整體比對
+        this.updateSingleWordColor(originalWords, spokenWords);
+    } else {
+        // 句子：逐字比對
+        this.updateSentenceWordColors(originalWords, spokenWords);
     }
 }
+
+// 更新單字/片語顏色（整體比對）
+updateSingleWordColor(originalWords, spokenWords) {
+    const wordSpan = document.querySelector('[data-word-index="0"]');
+    if (!wordSpan) return;
+    
+    if (this.isListening && spokenWords.length > 0) {
+        wordSpan.className = 'word-speaking';
+    }
+    
+    // 如果有最終結果，進行比對
+    if (this.transcript) {
+        const isCorrect = this.compareWords(originalWords, this.getWords(this.transcript));
+        wordSpan.className = isCorrect ? 'word-correct' : 'word-incorrect';
+    }
+}
+
+// 更新句子中各單字顏色（逐字比對）
+updateSentenceWordColors(originalWords, spokenWords) {
+    originalWords.forEach((originalWord, index) => {
+        const wordSpan = document.querySelector(`[data-word-index="${index}"]`);
+        if (!wordSpan) return;
+        
+        if (index < spokenWords.length) {
+            const spokenWord = spokenWords[index];
+            
+            if (this.isListening && index === spokenWords.length - 1) {
+                // 正在說的單字
+                wordSpan.className = 'word-speaking';
+            } else {
+                // 已說完的單字進行比對
+                const isCorrect = originalWord === spokenWord;
+                wordSpan.className = isCorrect ? 'word-correct' : 'word-incorrect';
+            }
+        } else if (this.isListening && index === spokenWords.length) {
+            // 下一個要說的單字
+            wordSpan.className = 'word-speaking';
+        }
+    });
+}
+
+// 比對兩組單字是否相同
+compareWords(originalWords, spokenWords) {
+    if (originalWords.length !== spokenWords.length) return false;
+    
+    for (let i = 0; i < originalWords.length; i++) {
+        if (originalWords[i] !== spokenWords[i]) return false;
+    }
+    
+    return true;
+}
+
+// 重置單字顏色
+resetWordColors() {
+    document.querySelectorAll('[data-word-index]').forEach(span => {
+        span.className = 'word-default';
+    });
+}
+
+} // AppState 類別結束
 
 // 全域應用狀態
 const app = new AppState();
@@ -566,16 +655,23 @@ function updatePracticeScreen() {
     
 // 更新標題 - 顯示練習內容
 if ('sentences' in item) {
+    const sentence = item.sentences[app.currentPartIndex];
+    const words = sentence.split(' ');
+    const wordsHtml = words.map((word, index) => 
+        `<span class="word-default" data-word-index="${index}">${word}</span>`
+    ).join(' ');
+    
     if (item.translation) {
         practiceTitle.innerHTML = `
-            ${item.sentences[app.currentPartIndex]}
-            <div class="text-slate-300 text-xl mt-3 font-normal">${item.translation}</div>
+            ${wordsHtml}
+            <div class="translation-text">${item.translation}</div>
         `;
     } else {
-        practiceTitle.textContent = item.sentences[app.currentPartIndex];
+        practiceTitle.innerHTML = wordsHtml;
     }
 } else {
-    practiceTitle.textContent = item.example;
+    // 單字或片語
+    practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
 }
 
     
@@ -595,11 +691,11 @@ if ('sentences' in item) {
     // 更新導航按鈕狀態
     updateNavigationButtons();
     
-    // 重置語音相關狀態
-    app.transcript = '';
-    app.comparisonResult = null;
-    app.updateTranscriptDisplay();
-    app.updateRecordButton();
+// 重置語音相關狀態
+app.transcript = '';
+app.comparisonResult = null;
+app.resetWordColors();
+app.updateRecordButton();
 }
 
 // 更新導航按鈕狀態
@@ -731,10 +827,9 @@ function updateChallengeScreen() {
     challengeScreen.appendChild(practiceUnit);
     
     // 重置狀態
-    app.transcript = '';
-    app.comparisonResult = null;
-    app.updateTranscriptDisplay();
-    app.updateRecordButton();
+app.transcript = '';
+app.comparisonResult = null;
+app.updateRecordButton();
 }
 
 function nextChallenge() {
