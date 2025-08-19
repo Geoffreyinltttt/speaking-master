@@ -6,23 +6,54 @@ let dataLoaded = false;
 
 // 瀏覽器相容性檢測
 function checkBrowserCompatibility() {
-    const isCompatible = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+    console.log('開始檢查瀏覽器相容性...');
     
-    if (!isCompatible) {
-        // 顯示不相容警告
+    // 檢測語音識別支援
+    const hasSpeechRecognition = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+    
+    // 檢測瀏覽器類型
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isFirefox = userAgent.includes('firefox');
+    const isChrome = userAgent.includes('chrome') && !userAgent.includes('edge');
+    const isEdge = userAgent.includes('edge') || userAgent.includes('edg');
+    const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+    
+    console.log('瀏覽器檢測結果:', {
+        userAgent: userAgent,
+        isFirefox: isFirefox,
+        isChrome: isChrome,
+        isEdge: isEdge,
+        isSafari: isSafari,
+        hasSpeechRecognition: hasSpeechRecognition
+    });
+    
+    // Firefox 通常不支援 Web Speech API
+    if (isFirefox || !hasSpeechRecognition) {
+        console.log('檢測到不相容的瀏覽器，顯示警告');
         showBrowserCompatibilityWarning();
         return false;
     }
     
+    console.log('瀏覽器相容性檢查通過');
     return true;
 }
 
 function showBrowserCompatibilityWarning() {
+    console.log('正在顯示瀏覽器相容性警告...');
+    
+    // 先移除現有的警告（如果有的話）
+    const existingWarning = document.getElementById('browserWarning');
+    if (existingWarning) {
+        existingWarning.remove();
+    }
+    
     const warningDiv = document.createElement('div');
     warningDiv.id = 'browserWarning';
     warningDiv.className = 'fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    warningDiv.style.zIndex = '9999'; // 確保在最上層
+    
     warningDiv.innerHTML = `
-        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center">
+        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);">
             <div class="text-yellow-400 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -77,6 +108,12 @@ function showBrowserCompatibilityWarning() {
     `;
     
     document.body.appendChild(warningDiv);
+    console.log('瀏覽器相容性警告已顯示');
+    
+    // 強制顯示（防止 CSS 問題）
+    setTimeout(() => {
+        warningDiv.style.display = 'flex';
+    }, 100);
 }
 
 function proceedWithoutSpeech() {
@@ -1495,8 +1532,12 @@ function toggleRecording() {
 
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
-    // 首先檢查瀏覽器相容性
-    checkBrowserCompatibility();
+    console.log('頁面載入完成，開始初始化...');
+    
+    // 首先檢查瀏覽器相容性（延遲一點確保 DOM 完全載入）
+    setTimeout(() => {
+        checkBrowserCompatibility();
+    }, 500);
     
     // 自動載入數據
     loadDataFromFile();
