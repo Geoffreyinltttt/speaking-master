@@ -736,42 +736,7 @@ updateTranscriptDisplay() {
             transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
         }
     }
-            // 錄音中的即時顯示
-            let displayContent = '';
-            
-            // 顯示已確定的文字（白色）
-            if (this.transcript) {
-                displayContent += `<span class="text-white font-medium">${this.transcript}</span>`;
-            }
-            
-            // 顯示正在識別的文字（淺藍色，表示暫時的）
-            if (this.interimTranscript) {
-                displayContent += `<span class="text-blue-300 italic ml-1">${this.interimTranscript}</span>`;
-            }
-            
-            // 如果都沒有文字，顯示聆聽狀態
-            if (!this.transcript && !this.interimTranscript) {
-                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽，請開始說話</span>';
-            }
-            
-            // 加入閃爍的錄音指示器
-            displayContent += '<span class="ml-2 inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>';
-            
-            transcriptArea.innerHTML = `<div class="text-center">${displayContent}</div>`;
-        } else if (this.transcript) {
-            // 錄音結束後顯示最終結果
-            transcriptArea.innerHTML = `
-                <div class="text-center">
-                    <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
-                    <p class="text-white font-medium text-lg">${this.transcript}</p>
-                    <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
-                </div>
-            `;
-        } else {
-            // 初始狀態
-            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
-        }
-    }
+
     
     processTranscript() {
         const practiceText = this.getCurrentPracticeText();
@@ -2133,5 +2098,6 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
 
