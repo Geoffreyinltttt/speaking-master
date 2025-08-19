@@ -669,10 +669,8 @@ class AppState {
         this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
         this.updateTranscriptDisplay();
 		
-        // 顯示詳細回饋
-        if (this.comparisonResult.details && this.comparisonResult.details.length > 0) {
-            this.showDetailedFeedback(this.comparisonResult.details);
-        }
+        // 不再自動顯示詳細回饋，改為點選單字時顯示
+        // 移除舊的自動回饋顯示邏輯
         
         // 如果是挑戰模式，顯示下一題按鈕
         if (this.currentScreen === 'challengeScreen') {
@@ -780,7 +778,7 @@ class AppState {
                 
                 if (similarity >= 0.8) {
                     correctWordCount++;
-                    resultNodes.push(`<span class="correct-word" title="✓ 發音正確 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+                    resultNodes.push(`<span class="correct-word clickable-word" data-word-index="${i}" data-feedback='{"type":"correct","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"✓ \\"${spokenWord}\\" 發音正確"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'correct',
                         original: originalWord,
@@ -790,35 +788,37 @@ class AppState {
                     });
                 } else if (similarity >= 0.5) {
                     correctWordCount += 0.7;
-                    resultNodes.push(`<span class="close-word" title="~ 接近正確 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+                    const suggestion = this.getPhoneticSuggestion(originalWord, spokenWord);
+                    resultNodes.push(`<span class="close-word clickable-word" data-word-index="${i}" data-feedback='{"type":"close","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"~ \\"${spokenWord}\\" 很接近了！標準發音：「${originalWord}」","suggestion":"${suggestion}"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'close',
                         original: originalWord,
                         spoken: spokenWord,
                         similarity: similarity,
                         message: `~ "${spokenWord}" 很接近了！標準發音：「${originalWord}」`,
-                        suggestion: this.getPhoneticSuggestion(originalWord, spokenWord)
+                        suggestion: suggestion
                     });
                 } else {
-                    resultNodes.push(`<span class="incorrect-word" title="✗ 需要改進 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+                    const suggestion = this.getPhoneticSuggestion(originalWord, spokenWord);
+                    resultNodes.push(`<span class="incorrect-word clickable-word" data-word-index="${i}" data-feedback='{"type":"incorrect","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"✗ \\"${spokenWord}\\" 與「${originalWord}」差異較大","suggestion":"${suggestion}"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'incorrect',
                         original: originalWord,
                         spoken: spokenWord,
                         similarity: similarity,
                         message: `✗ "${spokenWord}" 與「${originalWord}」差異較大`,
-                        suggestion: this.getPhoneticSuggestion(originalWord, spokenWord)
+                        suggestion: suggestion
                     });
                 }
             } else if (type === 'extra') {
-                resultNodes.push(`<span class="extra-word" title="多餘的單字">${spokenWord} </span>`);
+                resultNodes.push(`<span class="extra-word clickable-word" data-word-index="${i}" data-feedback='{"type":"extra","spoken":"${spokenWord}","message":"? 多說了「${spokenWord}」"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                 details.push({
                     type: 'extra',
                     spoken: spokenWord,
                     message: `? 多說了「${spokenWord}」`
                 });
             } else if (type === 'missing') {
-                resultNodes.push(`<span class="missing-word" title="遺漏的單字">(${originalWord}) </span>`);
+                resultNodes.push(`<span class="missing-word clickable-word" data-word-index="${i}" data-feedback='{"type":"missing","original":"${originalWord}","message":"! 遺漏了「${originalWord}」"}' title="點擊查看詳細回饋">(${originalWord}) </span>`);
                 details.push({
                     type: 'missing',
                     original: originalWord,
@@ -830,6 +830,11 @@ class AppState {
         const accuracy = originalWords.length > 0 ? (correctWordCount / originalWords.length) : 0;
         const isCorrect = accuracy >= 0.6;
         const score = Math.round(accuracy * 100);
+        
+        // 綁定點擊事件到可點擊的單字
+        setTimeout(() => {
+            this.bindWordClickEvents();
+        }, 100);
         
         return { 
             html: resultNodes.join(''), 
