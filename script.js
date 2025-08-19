@@ -663,7 +663,7 @@ class AppState {
                     <div class="text-center">
                         <p class="text-sm text-slate-300 mb-2">識別結果：</p>
                         <p class="text-lg font-semibold text-white">${this.transcript}</p>
-                        <p class="text-sm text-slate-400 mt-2">準確度: ${this.comparisonResult.score}% · 點擊上方單字查看詳細回饋</p>
+                        <p class="text-sm text-slate-400 mt-2">準確度: ${this.comparisonResult.score}%</p>
                     </div>
                 `;
             } else {
@@ -767,7 +767,6 @@ class AppState {
                 <div class="text-sm text-slate-200 flex flex-wrap justify-center gap-2">
                     ${summary.join(' · ')}
                 </div>
-                <div class="text-xs text-sky-300 mt-2">💡 點擊上方變色單字查看詳細建議</div>
             </div>
         `;
         
