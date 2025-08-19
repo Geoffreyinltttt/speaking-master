@@ -881,20 +881,28 @@ class AppState {
         return '';
     }
 
-    getCurrentItem() {
-        const list = this.getCurrentList();
-        return list[this.currentIndex] || null;
+getCurrentItem() {
+    if (app.mode === 'challenge') {
+        return app.challengeQuestions[app.currentQuestionIndex] || null;
     }
     
-    getCurrentList() {
-        if (this.contentType === 'vocabulary') {
-            return vocabulary;
-        } else if (this.contentType === 'idioms') {
-            return idioms;
-        } else {
-            return passages;
-        }
+    const list = this.getCurrentList();
+    return list[this.currentIndex] || null;
+}
+    
+getCurrentList() {
+    if (app.mode === 'challenge') {
+        return app.challengeQuestions;
     }
+    
+    if (this.contentType === 'vocabulary') {
+        return vocabulary;
+    } else if (this.contentType === 'idioms') {
+        return idioms;
+    } else {
+        return passages;
+    }
+}
 
     compareAndColorize(original, spoken) {
         const originalWords = this.getWords(original);
@@ -1680,9 +1688,15 @@ function updateNavigationButtons() {
     const prevPartBtn = document.getElementById('prevPartBtn');
     const nextPartBtn = document.getElementById('nextPartBtn');
     
-    // 項目導航
-    prevBtn.disabled = app.currentIndex === 0;
-    nextItemBtn.disabled = app.currentIndex === list.length - 1;
+    if (app.mode === 'challenge') {
+        // 挑戰模式：使用 currentQuestionIndex
+        prevBtn.disabled = app.currentQuestionIndex === 0;
+        nextItemBtn.disabled = app.currentQuestionIndex === list.length - 1;
+    } else {
+        // 練習模式：使用 currentIndex
+        prevBtn.disabled = app.currentIndex === 0;
+        nextItemBtn.disabled = app.currentIndex === list.length - 1;
+    }
     
     // 句子導航（僅課文）
     if ('sentences' in item) {
@@ -1694,12 +1708,21 @@ function updateNavigationButtons() {
 // 導航功能
 function navigateItem(direction) {
     const list = app.getCurrentList();
-    const newIndex = app.currentIndex + direction;
     
-    if (newIndex >= 0 && newIndex < list.length) {
-        app.currentIndex = newIndex;
-        app.currentPartIndex = 0;
-        updatePracticeScreen();
+    if (app.mode === 'challenge') {
+        const newIndex = app.currentQuestionIndex + direction;
+        if (newIndex >= 0 && newIndex < list.length) {
+            app.currentQuestionIndex = newIndex;
+            app.currentPartIndex = 0;
+            updatePracticeScreen();
+        }
+    } else {
+        const newIndex = app.currentIndex + direction;
+        if (newIndex >= 0 && newIndex < list.length) {
+            app.currentIndex = newIndex;
+            app.currentPartIndex = 0;
+            updatePracticeScreen();
+        }
     }
 }
 
@@ -1726,8 +1749,7 @@ function startChallenge() {
     vocabulary.forEach(item => {
         allItems.push({
             ...item,
-            type: 'vocabulary',
-            practiceText: item.example
+            type: 'vocabulary'
         });
     });
     
@@ -1735,183 +1757,33 @@ function startChallenge() {
     idioms.forEach(item => {
         allItems.push({
             ...item,
-            type: 'idioms',
-            practiceText: item.example
+            type: 'idioms'
         });
     });
     
-    // 加入句子
+    // 加入課文（保持原有結構）
     passages.forEach(passage => {
-        passage.sentences.forEach(sentence => {
-            allItems.push({
-                id: passage.id + '_sentence',
-                type: 'passage',
-                practiceText: sentence,
-                translation: passage.translation,
-                audio: passage.audio
-            });
+        allItems.push({
+            ...passage,
+            type: 'passage'
         });
     });
     
-    // 隨機選擇10個題目
+    // 隨機打亂順序並選擇10題
     const shuffled = allItems.sort(() => 0.5 - Math.random());
-    app.challengeQuestions = shuffled.slice(0, 10);
-    app.challengeAnswers = [];
+    app.challengeQuestions = shuffled.slice(0, 10); // 限制為10題
     app.currentQuestionIndex = 0;
     
-    showScreen('challengeScreen');
-    updateChallengeScreen();
+    // 重置狀態
+    app.currentIndex = 0;
+    app.currentPartIndex = 0;
+    app.resetAllStates();
+    
+    showScreen('practiceScreen');
+    updatePracticeScreen();
 }
 
-function updateChallengeScreen() {
-    const challengeProgress = document.getElementById('challengeProgress');
-    challengeProgress.textContent = `問題 ${app.currentQuestionIndex + 1} / ${app.challengeQuestions.length}`;
-    
-    // 清理並重新創建練習單元
-    const challengeScreen = document.getElementById('challengeScreen');
-    const existingUnit = challengeScreen.querySelector('.challenge-practice-unit');
-    if (existingUnit) {
-        existingUnit.remove();
-    }
-    
-    const currentQuestion = app.challengeQuestions[app.currentQuestionIndex];
-    const practiceText = currentQuestion.practiceText;
-    const audioFile = currentQuestion.audio || '';
-    
-    // 獲取題目類型的中文名稱
-    const typeNames = {
-        'vocabulary': '單字',
-        'idioms': '片語',
-        'passage': '句子'
-    };
-    const typeName = typeNames[currentQuestion.type] || '題目';
-    
-    // 重置狀態（在創建新按鈕之前）
-    app.transcript = '';
-    app.comparisonResult = null;
-    app.isListening = false; // 確保錄音狀態重置
-    
-    // 創建挑戰練習單元
-    const practiceUnit = document.createElement('div');
-    practiceUnit.className = 'challenge-practice-unit space-y-8';
-    practiceUnit.innerHTML = `
-        <!-- 練習文字卡片 -->
-        <div class="glass-secondary rounded-3xl p-8 border border-white/10">
-            <div class="text-center space-y-6">
-                <div class="text-sm text-sky-300 font-medium">${typeName}</div>
-                <div id="challengeTitle" class="text-3xl sm:text-4xl font-bold mb-4 leading-relaxed">${practiceText}</div>
-                <div class="flex justify-center items-center gap-4">
-                    <button onclick="speakText('${practiceText.replace(/'/g, "\\'")}', '${audioFile}')" class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 transition-all duration-300 hover:scale-110" title="聆聽發音">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        </svg>
-                    </button>
-                    <button id="recordBtn" onclick="toggleRecording()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-                        </svg>
-                        開始錄音
-                    </button>
-                </div>
-                
-                <!-- 轉錄顯示區域 -->
-                <div id="transcriptArea" class="mt-6 p-4 min-h-[80px] glass-tertiary rounded-xl transition-all duration-300">
-                    <p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>
-                </div>
-            </div>
-        </div>
-        
-        <button id="nextBtn" onclick="nextChallenge()" class="hidden w-full flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
-            下一題
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-        </button>
-    `;
-    
-    challengeScreen.appendChild(practiceUnit);
-    
-    // 設置文字的 data-word-index 屬性，讓顏色變化系統能運作
-    const challengeTitle = document.getElementById('challengeTitle');
-    const words = practiceText.split(' ');
-    if (currentQuestion.type === 'vocabulary' || currentQuestion.type === 'idioms') {
-        // 單字和片語：一個整體，加上可點擊屬性
-        challengeTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${practiceText}</span>`;
-    } else {
-        // 句子：逐字分解，每個字都可點擊
-        const wordsHtml = words.map((word, index) => 
-            `<span class="word-default clickable-word" data-word-index="${index}" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${word}</span>`
-        ).join(' ');
-        challengeTitle.innerHTML = wordsHtml;
-    }
-    
-    // 如果有翻譯，在練習文字下方另外顯示（只顯示一次）
-    if (currentQuestion.translation) {
-        const translationDiv = document.createElement('div');
-        translationDiv.className = 'translation-text mt-4 text-slate-400 text-lg';
-        translationDiv.textContent = currentQuestion.translation;
-        challengeTitle.parentNode.insertBefore(translationDiv, challengeTitle.nextSibling);
-    }
-    
-    // DOM 更新完成後，設置按鈕樣式和其他狀態
-    setTimeout(() => {
-        // 立即設置按鈕樣式（不依賴 updateRecordButton）
-        const recordBtn = document.getElementById('recordBtn');
-        if (recordBtn) {
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-        }
-        
-        app.resetWordColors();
-        app.resetTranscriptDisplay();
-        
-        // 重新綁定點擊事件
-        app.bindWordClickEvents();
-    }, 10);
-}
 
-function nextChallenge() {
-    // 記錄答案
-    const result = app.comparisonResult || { isCorrect: false, score: 0 };
-    app.challengeAnswers.push({
-        correct: result.isCorrect,
-        score: result.score
-    });
-    
-    if (app.currentQuestionIndex < app.challengeQuestions.length - 1) {
-        app.currentQuestionIndex++;
-        updateChallengeScreen();
-    } else {
-        showChallengeResults();
-    }
-}
-
-function showChallengeResults() {
-    const results = app.challengeQuestions.map((q, i) => ({
-        question: typeof q === 'string' ? q : q.practiceText,
-        correct: app.challengeAnswers[i].correct,
-        score: app.challengeAnswers[i].score
-    }));
-    
-    const correctCount = results.filter(r => r.correct).length;
-    const totalScore = results.reduce((sum, r) => sum + r.score, 0);
-    const averageScore = results.length > 0 ? Math.round(totalScore / results.length) : 0;
-    
-    // 更新結果顯示
-    document.getElementById('averageScore').innerHTML = `${averageScore} <span class="text-2xl text-slate-400">平均分</span>`;
-    document.getElementById('correctCount').textContent = `您答對了 ${correctCount} / ${results.length} 題。`;
-    
-    const resultsList = document.getElementById('resultsList');
-    resultsList.innerHTML = results.map((item, index) => `
-        <li class="flex justify-between items-center p-2 rounded-md bg-slate-800/70">
-            <span class="text-slate-300 italic flex-1 mr-4 truncate" title="${item.question}">${item.question}</span>
-            <span class="font-bold text-lg whitespace-nowrap ${item.score >= 80 ? 'text-green-400' : item.score >= 60 ? 'text-yellow-400' : 'text-red-400'}">
-                ${item.score} 分
-            </span>
-        </li>
-    `).join('');
-    
-    showScreen('challengeResult');
-}
 
 // 錄音控制
 function toggleRecording() {
@@ -1957,14 +1829,13 @@ document.addEventListener('DOMContentLoaded', function() {
         showScreen('contentTypeSelection');
     });
     
-    document.getElementById('challengeMode').addEventListener('click', () => {
-        if (!dataLoaded) {
-            alert('數據尚未載入完成，請稍候');
-            return;
-        }
-        app.mode = 'challenge';
-        startChallenge(); // 直接開始挑戰，不需要選擇內容類型
-    });
+document.getElementById('challengeMode').addEventListener('click', () => {
+    if (!dataLoaded) {
+        alert('數據尚未載入完成，請稍候');
+        return;
+    }
+    startChallenge();
+});
     
     // 內容類型選擇
     document.getElementById('vocabularyType').addEventListener('click', () => {
@@ -2049,9 +1920,9 @@ document.addEventListener('DOMContentLoaded', function() {
 window.startPractice = startPractice;
 window.toggleRecording = toggleRecording;
 window.speakText = speakText;
-window.nextChallenge = nextChallenge;
 window.loadDataFromFile = loadDataFromFile;
 window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
