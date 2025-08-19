@@ -1788,37 +1788,22 @@ function startChallenge() {
         });
     });
     
-// 加入句子
-passages.forEach(passage => {
-    // 確保 passage 有 sentences 屬性且不為空
-    if (passage.sentences && Array.isArray(passage.sentences) && passage.sentences.length > 0) {
+    // 加入句子
+    passages.forEach(passage => {
         passage.sentences.forEach(sentence => {
-            // 確保句子不為空
-            if (sentence && sentence.trim()) {
-                allItems.push({
-                    id: passage.id + '_sentence',
-                    type: 'passage',
-                    practiceText: sentence,
-                    translation: passage.translation,
-                    audio: passage.audio
-                });
-            }
+            allItems.push({
+                id: passage.id + '_sentence',
+                type: 'passage',
+                practiceText: sentence,
+                translation: passage.translation,
+                audio: passage.audio
+            });
         });
-    }
-});
+    });
     
-// 隨機選擇10個題目，如果題目不足則使用全部
-const shuffled = allItems.sort(() => 0.5 - Math.random());
-const questionCount = Math.min(10, allItems.length);
-app.challengeQuestions = shuffled.slice(0, questionCount);
-
-// 調試用：顯示實際題目數量
-console.log(`總共收集到 ${allItems.length} 個題目，挑戰模式將使用 ${questionCount} 題`);
-console.log('題目分布:', {
-    vocabulary: allItems.filter(item => item.type === 'vocabulary').length,
-    idioms: allItems.filter(item => item.type === 'idioms').length,
-    passages: allItems.filter(item => item.type === 'passage').length
-});
+    // 隨機選擇10個題目
+    const shuffled = allItems.sort(() => 0.5 - Math.random());
+    app.challengeQuestions = shuffled.slice(0, 10);
     app.challengeAnswers = [];
     app.currentQuestionIndex = 0;
     
