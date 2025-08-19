@@ -8,6 +8,9 @@ let dataLoaded = false;
 function checkBrowserCompatibility() {
     console.log('開始檢查瀏覽器相容性...');
     
+    // 在頁面上顯示檢測狀態（用於手機調試）
+    showDebugInfo('檢查瀏覽器相容性中...');
+    
     // 檢測語音識別支援
     const hasSpeechRecognition = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
     
@@ -18,6 +21,14 @@ function checkBrowserCompatibility() {
     const isEdge = userAgent.includes('edge') || userAgent.includes('edg');
     const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
     
+    // 顯示檢測結果
+    const debugInfo = `
+        瀏覽器: ${isFirefox ? 'Firefox' : isChrome ? 'Chrome' : isEdge ? 'Edge' : isSafari ? 'Safari' : '未知'}
+        語音支援: ${hasSpeechRecognition ? '是' : '否'}
+        User Agent: ${userAgent.substring(0, 50)}...
+    `;
+    showDebugInfo(debugInfo);
+    
     console.log('瀏覽器檢測結果:', {
         userAgent: userAgent,
         isFirefox: isFirefox,
@@ -27,15 +38,54 @@ function checkBrowserCompatibility() {
         hasSpeechRecognition: hasSpeechRecognition
     });
     
-    // Firefox 通常不支援 Web Speech API
+    // Firefox 通常不支援 Web Speech API，或支援度很低
     if (isFirefox || !hasSpeechRecognition) {
         console.log('檢測到不相容的瀏覽器，顯示警告');
-        showBrowserCompatibilityWarning();
+        showDebugInfo('檢測到不相容瀏覽器，準備顯示警告...');
+        setTimeout(() => {
+            showBrowserCompatibilityWarning();
+            hideDebugInfo();
+        }, 2000);
         return false;
     }
     
     console.log('瀏覽器相容性檢查通過');
+    showDebugInfo('瀏覽器相容性檢查通過！');
+    setTimeout(hideDebugInfo, 2000);
     return true;
+}
+
+// 顯示調試資訊（手機可見）
+function showDebugInfo(message) {
+    let debugDiv = document.getElementById('debugInfo');
+    if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'debugInfo';
+        debugDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-line;
+        `;
+        document.body.appendChild(debugDiv);
+    }
+    debugDiv.textContent = message;
+}
+
+// 隱藏調試資訊
+function hideDebugInfo() {
+    const debugDiv = document.getElementById('debugInfo');
+    if (debugDiv) {
+        debugDiv.remove();
+    }
 }
 
 function showBrowserCompatibilityWarning() {
