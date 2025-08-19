@@ -624,13 +624,19 @@ class AppState {
         }, 100);
     }
     
-    updateRecordButton() {
-        const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) return;
-        
-        // 強制移除所有現有的樣式類別
-        recordBtn.removeAttribute('class');
-        recordBtn.removeAttribute('style');
+updateRecordButton() {
+    const recordBtn = document.getElementById('recordBtn');
+    if (!recordBtn) {
+        console.log('找不到錄音按鈕元素');
+        return;
+    }
+    
+    console.log('更新錄音按鈕狀態:', this.isListening ? '錄音中' : '待機中');
+    
+    // 強制移除所有現有的樣式類別
+    recordBtn.removeAttribute('class');
+    recordBtn.removeAttribute('style');
+
         
         if (this.isListening) {
             recordBtn.innerHTML = `
@@ -656,19 +662,20 @@ class AppState {
         }
     }
     
-    updateTranscriptDisplay() {
-        const transcriptArea = document.getElementById('transcriptArea');
-        if (!transcriptArea) {
-            console.log('找不到轉錄顯示區域');
-            return;
-        }
-        
-        console.log('更新轉錄顯示:', {
-            isListening: this.isListening,
-            transcript: this.transcript,
-            interim: this.interimTranscript,
-            hasComparison: !!this.comparisonResult
-        });
+updateTranscriptDisplay() {
+    const transcriptArea = document.getElementById('transcriptArea');
+    if (!transcriptArea) {
+        console.log('找不到轉錄顯示區域');
+        return;
+    }
+    
+    console.log('更新轉錄顯示:', {
+        currentScreen: this.currentScreen,
+        isListening: this.isListening,
+        transcript: this.transcript,
+        interim: this.interimTranscript,
+        hasComparison: !!this.comparisonResult
+    });
         
         if (this.comparisonResult) {
             // 根據內容類型決定顯示方式
@@ -1788,22 +1795,38 @@ function startChallenge() {
         });
     });
     
-    // 加入句子
-    passages.forEach(passage => {
+// 加入句子
+passages.forEach(passage => {
+    // 確保 passage 有 sentences 屬性且不為空
+    if (passage.sentences && Array.isArray(passage.sentences) && passage.sentences.length > 0) {
         passage.sentences.forEach(sentence => {
-            allItems.push({
-                id: passage.id + '_sentence',
-                type: 'passage',
-                practiceText: sentence,
-                translation: passage.translation,
-                audio: passage.audio
-            });
+            // 確保句子不為空
+            if (sentence && sentence.trim()) {
+                allItems.push({
+                    id: passage.id + '_sentence',
+                    type: 'passage',
+                    practiceText: sentence,
+                    translation: passage.translation,
+                    audio: passage.audio
+                });
+            }
         });
-    });
+    }
+});
     
-    // 隨機選擇10個題目
-    const shuffled = allItems.sort(() => 0.5 - Math.random());
-    app.challengeQuestions = shuffled.slice(0, 10);
+// 隨機選擇10個題目，如果題目不足則使用全部
+const shuffled = allItems.sort(() => 0.5 - Math.random());
+const questionCount = Math.min(10, allItems.length);
+app.challengeQuestions = shuffled.slice(0, questionCount);
+
+// 調試用：顯示實際題目數量
+console.log(`總共收集到 ${allItems.length} 個題目，挑戰模式將使用 ${questionCount} 題`);
+console.log('題目分布:', {
+    vocabulary: allItems.filter(item => item.type === 'vocabulary').length,
+    idioms: allItems.filter(item => item.type === 'idioms').length,
+    passages: allItems.filter(item => item.type === 'passage').length
+});
+    
     app.challengeAnswers = [];
     app.currentQuestionIndex = 0;
     
@@ -1901,20 +1924,16 @@ function updateChallengeScreen() {
         challengeTitle.parentNode.insertBefore(translationDiv, challengeTitle.nextSibling);
     }
     
-    // DOM 更新完成後，設置按鈕樣式和其他狀態
-    setTimeout(() => {
-        // 立即設置按鈕樣式（不依賴 updateRecordButton）
-        const recordBtn = document.getElementById('recordBtn');
-        if (recordBtn) {
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-        }
-        
-        app.resetWordColors();
-        app.resetTranscriptDisplay();
-        
-        // 重新綁定點擊事件
-        app.bindWordClickEvents();
-    }, 10);
+// DOM 更新完成後，設置按鈕樣式和其他狀態
+setTimeout(() => {
+    // 確保按鈕狀態正確更新
+    app.updateRecordButton();
+    app.resetWordColors();
+    app.resetTranscriptDisplay();
+    
+    // 重新綁定點擊事件
+    app.bindWordClickEvents();
+}, 10);
 }
 
 function nextChallenge() {
@@ -2103,3 +2122,4 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
