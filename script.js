@@ -543,79 +543,79 @@ class AppState {
         };
     }
     
-   startListening() {
-    // 檢查是否被禁用
-    if (window.speechDisabled) {
-        alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
-        return;
-    }
-    
-    if (!this.recognition || this.isListening) return;
-    
-    // 確保所有音頻播放都已停止（加上條件檢查）
-    if (document.readyState === 'complete') {
-        this.ensureAudioStopped();
-    }
-    
-    this.transcript = '';
-    this.interimTranscript = '';
-    this.comparisonResult = null;
-    this.resetWordColors();
-    
-    // 增加延遲確保音頻設備完全釋放
-    setTimeout(() => {
-        try {
-            this.recognition.start();
-            this.isListening = true;
-            this.updateRecordButton();
-        } catch (e) {
-            console.error('語音辨識無法啟動:', e);
-            // 如果失敗，再試一次
-            setTimeout(() => {
-                try {
-                    this.recognition.start();
-                    this.isListening = true;
-                    this.updateRecordButton();
-                } catch (e2) {
-                    console.error('語音辨識第二次嘗試也失敗:', e2);
-                    alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
-                }
-            }, 1000);
+    startListening() {
+        // 檢查是否被禁用
+        if (window.speechDisabled) {
+            alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
+            return;
         }
-    }, 200);
-}
-
-// 確保所有音頻播放停止
-ensureAudioStopped() {
-    // 停止所有 HTML audio 元素
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-        if (!audio.paused) {
-            audio.pause();
-            audio.currentTime = 0;
+        
+        if (!this.recognition || this.isListening) return;
+        
+        // 確保所有音頻播放都已停止（加上條件檢查）
+        if (document.readyState === 'complete') {
+            this.ensureAudioStopped();
         }
-    });
-    
-    // 停止語音合成
-    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+        
+        this.transcript = '';
+        this.interimTranscript = '';
+        this.comparisonResult = null;
+        this.resetWordColors();
+        
+        // 增加延遲確保音頻設備完全釋放
+        setTimeout(() => {
+            try {
+                this.recognition.start();
+                this.isListening = true;
+                this.updateRecordButton();
+            } catch (e) {
+                console.error('語音辨識無法啟動:', e);
+                // 如果失敗，再試一次
+                setTimeout(() => {
+                    try {
+                        this.recognition.start();
+                        this.isListening = true;
+                        this.updateRecordButton();
+                    } catch (e2) {
+                        console.error('語音辨識第二次嘗試也失敗:', e2);
+                        alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
+                    }
+                }, 1000);
+            }
+        }, 200);
     }
-    
-    console.log('All audio playback stopped');
-}
 
-stopListening() {
-    if (!this.recognition || !this.isListening) return;
-    
-    this.recognition.stop();
-    this.isListening = false;
-    this.updateRecordButton();
-    
-    // 最終更新顏色
-    setTimeout(() => {
-        this.updateWordColors();
-    }, 100);
-}
+    // 確保所有音頻播放停止
+    ensureAudioStopped() {
+        // 停止所有 HTML audio 元素
+        const audioElements = document.querySelectorAll('audio');
+        audioElements.forEach(audio => {
+            if (!audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        });
+        
+        // 停止語音合成
+        if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        
+        console.log('All audio playback stopped');
+    }
+        
+    stopListening() {
+        if (!this.recognition || !this.isListening) return;
+        
+        this.recognition.stop();
+        this.isListening = false;
+        this.updateRecordButton();
+        
+        // 最終更新顏色
+        setTimeout(() => {
+            this.updateWordColors();
+        }, 100);
+    }
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
@@ -701,65 +701,63 @@ stopListening() {
         }
     }
     
-processTranscript() {
-    const practiceText = this.getCurrentPracticeText();
-    if (!practiceText || !this.transcript) return;
-    
-    this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
-    this.updateTranscriptDisplay();
+    processTranscript() {
+        const practiceText = this.getCurrentPracticeText();
+        if (!practiceText || !this.transcript) return;
+        
+        this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
+        this.updateTranscriptDisplay();
 
-    // 根據內容類型決定是否顯示詳細回饋
-    const item = this.getCurrentItem();
-    if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
-        // 單字和片語：顯示整體回饋在下方
-        this.showDetailedFeedback(this.comparisonResult.details);
-    } else if ('sentences' in item) {
-        // 句子：不自動顯示回饋，等待使用者點擊單字
-        console.log('句子練習完成，請點擊上方單字查看詳細回饋');
-        // 可以選擇性地顯示一個簡單提示
-        this.showClickHint();
-    }
-    
-    // 如果是挑戰模式，顯示下一題按鈕
-    if (this.currentScreen === 'challengeScreen') {
-        document.getElementById('nextBtn').classList.remove('hidden');
-    }
-}
-
-	// 顯示點擊提示（僅句子練習）
-showClickHint() {
-    // 移除舊的提示
-    const oldHint = document.getElementById('clickHint');
-    if (oldHint) oldHint.remove();
-    
-    // 創建新提示
-    const hintDiv = document.createElement('div');
-    hintDiv.id = 'clickHint';
-    hintDiv.className = 'mt-4 p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl text-center';
-    hintDiv.innerHTML = `
-        <p class="text-sky-300 text-sm">
-            💡 點擊上方的單字查看詳細發音回饋
-        </p>
-    `;
-    
-    // 插入到轉錄區域下方
-    const transcriptArea = document.getElementById('transcriptArea');
-    if (transcriptArea && transcriptArea.parentNode) {
-        transcriptArea.parentNode.insertBefore(hintDiv, transcriptArea.nextSibling);
-    }
-    
-    // 3秒後自動消失
-    setTimeout(() => {
-        if (hintDiv.parentNode) {
-            hintDiv.remove();
+        // 根據內容類型決定是否顯示詳細回饋
+        const item = this.getCurrentItem();
+        if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
+            // 單字和片語：顯示整體回饋在下方
+            this.showDetailedFeedback(this.comparisonResult.details);
+        } else if ('sentences' in item) {
+            // 句子：不自動顯示回饋，等待使用者點擊單字
+            console.log('句子練習完成，請點擊上方單字查看詳細回饋');
+            // 可以選擇性地顯示一個簡單提示
+            this.showClickHint();
         }
-    }, 3000);
-}
+        
+        // 如果是挑戰模式，顯示下一題按鈕
+        if (this.currentScreen === 'challengeScreen') {
+            document.getElementById('nextBtn').classList.remove('hidden');
+        }
+    }
+
+    // 顯示點擊提示（僅句子練習）
+    showClickHint() {
+        // 移除舊的提示
+        document.getElementById('clickHint')?.remove();
+        
+        // 創建新提示
+        const hintDiv = document.createElement('div');
+        hintDiv.id = 'clickHint';
+        hintDiv.className = 'mt-4 p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl text-center';
+        hintDiv.innerHTML = `
+            <p class="text-sky-300 text-sm">
+                💡 點擊上方的單字查看詳細發音回饋
+            </p>
+        `;
+        
+        // 插入到轉錄區域下方
+        const transcriptArea = document.getElementById('transcriptArea');
+        if (transcriptArea && transcriptArea.parentNode) {
+            transcriptArea.parentNode.insertBefore(hintDiv, transcriptArea.nextSibling);
+        }
+        
+        // 3秒後自動消失
+        setTimeout(() => {
+            if (hintDiv.parentNode) {
+                hintDiv.remove();
+            }
+        }, 3000);
+    }
     
     showDetailedFeedback(details) {
         // 移除舊的回饋區域
-        const oldFeedback = document.getElementById('detailedFeedback');
-        if (oldFeedback) oldFeedback.remove();
+        document.getElementById('detailedFeedback')?.remove();
         
         // 創建新的回饋區域
         const feedbackDiv = document.createElement('div');
@@ -922,85 +920,84 @@ showClickHint() {
         };
     }
 
-// 綁定單字點擊事件
-bindWordClickEvents() {
-    document.querySelectorAll('.clickable-word').forEach(wordElement => {
-        wordElement.addEventListener('click', (e) => {
-            const feedbackData = e.target.getAttribute('data-feedback');
-            if (feedbackData) {
-                try {
-                    const feedback = JSON.parse(feedbackData);
-                    this.showIndividualWordFeedback(feedback, e.target);
-                } catch (error) {
-                    console.error('解析回饋資料失敗:', error);
+    // 綁定單字點擊事件
+    bindWordClickEvents() {
+        document.querySelectorAll('.clickable-word').forEach(wordElement => {
+            wordElement.addEventListener('click', (e) => {
+                const feedbackData = e.target.getAttribute('data-feedback');
+                if (feedbackData) {
+                    try {
+                        const feedback = JSON.parse(feedbackData);
+                        this.showIndividualWordFeedback(feedback, e.target);
+                    } catch (error) {
+                        console.error('解析回饋資料失敗:', error);
+                    }
                 }
+            });
+        });
+    }
+
+    // 顯示個別單字回饋
+    showIndividualWordFeedback(feedback, targetElement) {
+        // 移除現有的彈出回饋
+        document.getElementById('wordFeedbackPopup')?.remove();
+        
+        // 創建回饋彈出框
+        const popup = document.createElement('div');
+        popup.id = 'wordFeedbackPopup';
+        popup.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        
+        let iconColor, icon;
+        switch (feedback.type) {
+            case 'correct':
+                iconColor = 'text-green-400';
+                icon = '✅';
+                break;
+            case 'close':
+                iconColor = 'text-yellow-400';
+                icon = '🟡';
+                break;
+            case 'incorrect':
+                iconColor = 'text-red-400';
+                icon = '❌';
+                break;
+            case 'extra':
+                iconColor = 'text-blue-400';
+                icon = '➕';
+                break;
+            case 'missing':
+                iconColor = 'text-orange-400';
+                icon = '➖';
+                break;
+            default:
+                iconColor = 'text-slate-400';
+                icon = '•';
+        }
+        
+        popup.innerHTML = `
+            <div class="glass-primary rounded-2xl p-6 max-w-sm mx-4 text-center">
+                <div class="${iconColor} text-4xl mb-3">${icon}</div>
+                <h3 class="text-lg font-semibold text-white mb-3">發音回饋</h3>
+                <p class="text-slate-300 mb-4">${feedback.message}</p>
+                ${feedback.suggestion ? `<p class="text-yellow-300 text-sm mb-4">💡 ${feedback.suggestion}</p>` : ''}
+                ${feedback.similarity ? `<p class="text-slate-400 text-xs mb-4">相似度: ${Math.round(feedback.similarity * 100)}%</p>` : ''}
+                <button onclick="document.getElementById('wordFeedbackPopup').remove()" 
+                        class="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-colors">
+                    知道了
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // 點擊背景關閉
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) {
+                popup.remove();
             }
         });
-    });
-}
-
-	// 顯示個別單字回饋
-showIndividualWordFeedback(feedback, targetElement) {
-    // 移除現有的彈出回饋
-    const existingPopup = document.getElementById('wordFeedbackPopup');
-    if (existingPopup) existingPopup.remove();
-    
-    // 創建回饋彈出框
-    const popup = document.createElement('div');
-    popup.id = 'wordFeedbackPopup';
-    popup.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    
-    let iconColor, icon;
-    switch (feedback.type) {
-        case 'correct':
-            iconColor = 'text-green-400';
-            icon = '✅';
-            break;
-        case 'close':
-            iconColor = 'text-yellow-400';
-            icon = '🟡';
-            break;
-        case 'incorrect':
-            iconColor = 'text-red-400';
-            icon = '❌';
-            break;
-        case 'extra':
-            iconColor = 'text-blue-400';
-            icon = '➕';
-            break;
-        case 'missing':
-            iconColor = 'text-orange-400';
-            icon = '➖';
-            break;
-        default:
-            iconColor = 'text-slate-400';
-            icon = '•';
     }
-    
-    popup.innerHTML = `
-        <div class="glass-primary rounded-2xl p-6 max-w-sm mx-4 text-center">
-            <div class="${iconColor} text-4xl mb-3">${icon}</div>
-            <h3 class="text-lg font-semibold text-white mb-3">發音回饋</h3>
-            <p class="text-slate-300 mb-4">${feedback.message}</p>
-            ${feedback.suggestion ? `<p class="text-yellow-300 text-sm mb-4">💡 ${feedback.suggestion}</p>` : ''}
-            ${feedback.similarity ? `<p class="text-slate-400 text-xs mb-4">相似度: ${Math.round(feedback.similarity * 100)}%</p>` : ''}
-            <button onclick="document.getElementById('wordFeedbackPopup').remove()" 
-                    class="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-colors">
-                知道了
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(popup);
-    
-    // 點擊背景關閉
-    popup.addEventListener('click', (e) => {
-        if (e.target === popup) {
-            popup.remove();
-        }
-    });
-}
-	
+        
     // 改進的詞語對齊算法 - 更寬容的匹配
     alignWordsImproved(original, spoken) {
         const result = [];
@@ -1332,7 +1329,7 @@ showIndividualWordFeedback(feedback, targetElement) {
         }
     }
 
-    // 在這裡加入新的方法
+    // 重置所有狀態
     resetAllStates() {
         // 停止語音識別
         if (this.isListening) {
@@ -1349,8 +1346,7 @@ showIndividualWordFeedback(feedback, targetElement) {
         this.currentPartIndex = 0;
         
         // 清理 DOM 中的回饋
-        const oldFeedback = document.getElementById('detailedFeedback');
-        if (oldFeedback) oldFeedback.remove();
+        document.getElementById('detailedFeedback')?.remove();
         
         // 重置錄音按鈕
         this.updateRecordButton();
@@ -1370,8 +1366,7 @@ const app = new AppState();
 // 螢幕管理
 function showScreen(screenId) {
     // 清理所有回饋內容（不管切換到哪個螢幕）
-    const oldFeedback = document.getElementById('detailedFeedback');
-    if (oldFeedback) oldFeedback.remove();
+    document.getElementById('detailedFeedback')?.remove();
     
     // 如果要切換到非練習螢幕，停止語音識別
     if (screenId !== 'practiceScreen' && screenId !== 'challengeScreen' && app.isListening) {
@@ -1468,8 +1463,7 @@ function speakWithTTS(text) {
 // 列表渲染功能
 function renderList() {
     // 清理之前的回饋內容
-    const oldFeedback = document.getElementById('detailedFeedback');
-    if (oldFeedback) oldFeedback.remove();
+    document.getElementById('detailedFeedback')?.remove();
     
     // 重置應用狀態
     app.transcript = '';
@@ -1524,8 +1518,7 @@ function renderList() {
 // 開始練習
 function startPractice(index, from = 'list') {
     // 清理之前的回饋內容
-    const oldFeedback = document.getElementById('detailedFeedback');
-    if (oldFeedback) oldFeedback.remove();
+    document.getElementById('detailedFeedback')?.remove();
     
     // 重置所有相關狀態
     app.currentIndex = index;
@@ -1546,66 +1539,59 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
-   // 清理之前的回饋內容
-   const oldFeedback = document.getElementById('detailedFeedback');
-   if (oldFeedback) oldFeedback.remove();
-   
-   const oldHint = document.getElementById('clickHint');
-   if (oldHint) oldHint.remove();
+    // 清理之前的回饋內容
+    document.getElementById('detailedFeedback')?.remove();
+    document.getElementById('clickHint')?.remove();
+    document.getElementById('wordFeedbackPopup')?.remove();
+    
+    const item = app.getCurrentItem();
+    if (!item) return;
+    
+    const practiceTitle = document.getElementById('practiceTitle');
+    const practiceSubtitle = document.getElementById('practiceSubtitle');
+    const partNavigation = document.getElementById('partNavigation');
+    
+    // 更新標題 - 顯示練習內容
+    if ('sentences' in item) {
+        const sentence = item.sentences[app.currentPartIndex];
+        const words = sentence.split(' ');
+        const wordsHtml = words.map((word, index) => 
+            `<span class="word-default" data-word-index="${index}">${word}</span>`
+        ).join(' ');
+        
+        if (item.translation) {
+            practiceTitle.innerHTML = `
+                ${wordsHtml}
+                <div class="translation-text">${item.translation}</div>
+            `;
+        } else {
+            practiceTitle.innerHTML = wordsHtml;
+        }
+    } else {
+        // 單字或片語
+        practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
+    }
 
-   const oldPopup = document.getElementById('wordFeedbackPopup');
-   if (oldPopup) oldPopup.remove();
-   
-   const item = app.getCurrentItem();
-   if (!item) return;
-   
-   const practiceTitle = document.getElementById('practiceTitle');
-   const practiceSubtitle = document.getElementById('practiceSubtitle');
-   const practiceText = document.getElementById('practiceText');
-   const favoriteBtn = document.getElementById('favoriteBtn');
-   const partNavigation = document.getElementById('partNavigation');
-   
-   // 更新標題 - 顯示練習內容
-   if ('sentences' in item) {
-       const sentence = item.sentences[app.currentPartIndex];
-       const words = sentence.split(' ');
-       const wordsHtml = words.map((word, index) => 
-           `<span class="word-default" data-word-index="${index}">${word}</span>`
-       ).join(' ');
-       
-       if (item.translation) {
-           practiceTitle.innerHTML = `
-               ${wordsHtml}
-               <div class="translation-text">${item.translation}</div>
-           `;
-       } else {
-           practiceTitle.innerHTML = wordsHtml;
-       }
-   } else {
-       // 單字或片語
-       practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
-   }
-
-   
-   // 更新副標題（僅課文有多句）
-   if ('sentences' in item && item.sentences.length > 1) {
-       practiceSubtitle.textContent = `句子 ${app.currentPartIndex + 1} / ${item.sentences.length}`;
-       practiceSubtitle.classList.remove('hidden');
-       partNavigation.classList.remove('hidden');
-   } else {
-       practiceSubtitle.classList.add('hidden');
-       partNavigation.classList.add('hidden');
-   }
-   
-   // 更新導航按鈕狀態
-   updateNavigationButtons();
-   
-   // 重置語音相關狀態
-   app.transcript = '';
-   app.comparisonResult = null;
-   app.resetWordColors();
-   app.updateRecordButton();
-   app.resetTranscriptDisplay();
+    
+    // 更新副標題（僅課文有多句）
+    if ('sentences' in item && item.sentences.length > 1) {
+        practiceSubtitle.textContent = `句子 ${app.currentPartIndex + 1} / ${item.sentences.length}`;
+        practiceSubtitle.classList.remove('hidden');
+        partNavigation.classList.remove('hidden');
+    } else {
+        practiceSubtitle.classList.add('hidden');
+        partNavigation.classList.add('hidden');
+    }
+    
+    // 更新導航按鈕狀態
+    updateNavigationButtons();
+    
+    // 重置語音相關狀態
+    app.transcript = '';
+    app.comparisonResult = null;
+    app.resetWordColors();
+    app.updateRecordButton();
+    app.resetTranscriptDisplay();
 }
 
 // 更新導航按鈕狀態
@@ -1831,6 +1817,7 @@ function showChallengeResults() {
     showScreen('challengeResult');
 }
 
+// 錄音控制
 function toggleRecording() {
     if (app.isListening) {
         app.stopListening();
@@ -1885,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 內容類型選擇
     document.getElementById('vocabularyType').addEventListener('click', () => {
-        app.resetAllStates(); // ← 加入這一行
+        app.resetAllStates();
         app.contentType = 'vocabulary';
         if (app.mode === 'practice') {
             showScreen('listView');
@@ -1896,7 +1883,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('idiomsType').addEventListener('click', () => {
-        app.resetAllStates(); // ← 加入這一行
+        app.resetAllStates();
         app.contentType = 'idioms';
         if (app.mode === 'practice') {
             showScreen('listView');
@@ -1907,7 +1894,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('passageType').addEventListener('click', () => {
-        app.resetAllStates(); // ← 加入這一行
+        app.resetAllStates();
         app.contentType = 'passage';
         if (app.mode === 'practice') {
             showScreen('listView');
@@ -1972,7 +1959,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-
-
-
-
