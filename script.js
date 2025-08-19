@@ -624,19 +624,13 @@ class AppState {
         }, 100);
     }
     
-updateRecordButton() {
-    const recordBtn = document.getElementById('recordBtn');
-    if (!recordBtn) {
-        console.log('找不到錄音按鈕元素');
-        return;
-    }
-    
-    console.log('更新錄音按鈕狀態:', this.isListening ? '錄音中' : '待機中');
-    
-    // 強制移除所有現有的樣式類別
-    recordBtn.removeAttribute('class');
-    recordBtn.removeAttribute('style');
-
+    updateRecordButton() {
+        const recordBtn = document.getElementById('recordBtn');
+        if (!recordBtn) return;
+        
+        // 強制移除所有現有的樣式類別
+        recordBtn.removeAttribute('class');
+        recordBtn.removeAttribute('style');
         
         if (this.isListening) {
             recordBtn.innerHTML = `
@@ -662,20 +656,19 @@ updateRecordButton() {
         }
     }
     
-updateTranscriptDisplay() {
-    const transcriptArea = document.getElementById('transcriptArea');
-    if (!transcriptArea) {
-        console.log('找不到轉錄顯示區域');
-        return;
-    }
-    
-    console.log('更新轉錄顯示:', {
-        currentScreen: this.currentScreen,
-        isListening: this.isListening,
-        transcript: this.transcript,
-        interim: this.interimTranscript,
-        hasComparison: !!this.comparisonResult
-    });
+    updateTranscriptDisplay() {
+        const transcriptArea = document.getElementById('transcriptArea');
+        if (!transcriptArea) {
+            console.log('找不到轉錄顯示區域');
+            return;
+        }
+        
+        console.log('更新轉錄顯示:', {
+            isListening: this.isListening,
+            transcript: this.transcript,
+            interim: this.interimTranscript,
+            hasComparison: !!this.comparisonResult
+        });
         
         if (this.comparisonResult) {
             // 根據內容類型決定顯示方式
@@ -736,7 +729,42 @@ updateTranscriptDisplay() {
             transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
         }
     }
-
+            // 錄音中的即時顯示
+            let displayContent = '';
+            
+            // 顯示已確定的文字（白色）
+            if (this.transcript) {
+                displayContent += `<span class="text-white font-medium">${this.transcript}</span>`;
+            }
+            
+            // 顯示正在識別的文字（淺藍色，表示暫時的）
+            if (this.interimTranscript) {
+                displayContent += `<span class="text-blue-300 italic ml-1">${this.interimTranscript}</span>`;
+            }
+            
+            // 如果都沒有文字，顯示聆聽狀態
+            if (!this.transcript && !this.interimTranscript) {
+                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽，請開始說話</span>';
+            }
+            
+            // 加入閃爍的錄音指示器
+            displayContent += '<span class="ml-2 inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>';
+            
+            transcriptArea.innerHTML = `<div class="text-center">${displayContent}</div>`;
+        } else if (this.transcript) {
+            // 錄音結束後顯示最終結果
+            transcriptArea.innerHTML = `
+                <div class="text-center">
+                    <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
+                    <p class="text-white font-medium text-lg">${this.transcript}</p>
+                    <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
+                </div>
+            `;
+        } else {
+            // 初始狀態
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
+        }
+    }
     
     processTranscript() {
         const practiceText = this.getCurrentPracticeText();
@@ -1791,7 +1819,6 @@ console.log('題目分布:', {
     idioms: allItems.filter(item => item.type === 'idioms').length,
     passages: allItems.filter(item => item.type === 'passage').length
 });
-    
     app.challengeAnswers = [];
     app.currentQuestionIndex = 0;
     
@@ -1889,20 +1916,20 @@ function updateChallengeScreen() {
         challengeTitle.parentNode.insertBefore(translationDiv, challengeTitle.nextSibling);
     }
     
-// DOM 更新完成後，設置按鈕樣式和其他狀態
-setTimeout(() => {
-    // 立即設置按鈕樣式（不依賴 updateRecordButton）
-    const recordBtn = document.getElementById('recordBtn');
-    if (recordBtn) {
-        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-    }
-    
-    app.resetWordColors();
-    app.resetTranscriptDisplay();
-    
-    // 重新綁定點擊事件
-    app.bindWordClickEvents();
-}, 10);
+    // DOM 更新完成後，設置按鈕樣式和其他狀態
+    setTimeout(() => {
+        // 立即設置按鈕樣式（不依賴 updateRecordButton）
+        const recordBtn = document.getElementById('recordBtn');
+        if (recordBtn) {
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+        }
+        
+        app.resetWordColors();
+        app.resetTranscriptDisplay();
+        
+        // 重新綁定點擊事件
+        app.bindWordClickEvents();
+    }, 10);
 }
 
 function nextChallenge() {
@@ -1949,9 +1976,8 @@ function showChallengeResults() {
     showScreen('challengeResult');
 }
 
+// 錄音控制
 function toggleRecording() {
-    console.log('toggleRecording called, current state:', app.isListening);
-    
     if (app.isListening) {
         app.stopListening();
     } else {
@@ -1969,12 +1995,6 @@ function toggleRecording() {
             app.startListening();
         }
     }
-    
-    // 強制更新按鈕狀態（挑戰模式需要）
-    setTimeout(() => {
-        app.updateRecordButton();
-        app.updateTranscriptDisplay();
-    }, 100);
 }
 
 // 事件監聽器設定
@@ -2098,6 +2118,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-
-
-
