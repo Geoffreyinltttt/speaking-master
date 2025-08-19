@@ -1791,7 +1791,6 @@ function updateChallengeScreen() {
             <div class="text-center space-y-6">
                 <div class="text-sm text-sky-300 font-medium">${typeName}</div>
                 <div id="challengeTitle" class="text-3xl sm:text-4xl font-bold mb-4 leading-relaxed">${practiceText}</div>
-                ${currentQuestion.translation ? `<div class="translation-text mt-4">${currentQuestion.translation}</div>` : ''}
                 <div class="flex justify-center items-center gap-4">
                     <button onclick="speakText('${practiceText.replace(/'/g, "\\'")}', '${audioFile}')" class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 transition-all duration-300 hover:scale-110" title="聆聽發音">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -1835,11 +1834,14 @@ function updateChallengeScreen() {
             `<span class="word-default clickable-word" data-word-index="${index}" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${word}</span>`
         ).join(' ');
         challengeTitle.innerHTML = wordsHtml;
-        
-        // 如果有翻譯，顯示在下方
-        if (currentQuestion.translation) {
-            challengeTitle.innerHTML += `<div class="translation-text mt-4">${currentQuestion.translation}</div>`;
-        }
+    }
+    
+    // 如果有翻譯，在練習文字下方另外顯示（只顯示一次）
+    if (currentQuestion.translation) {
+        const translationDiv = document.createElement('div');
+        translationDiv.className = 'translation-text mt-4 text-slate-400 text-lg';
+        translationDiv.textContent = currentQuestion.translation;
+        challengeTitle.parentNode.insertBefore(translationDiv, challengeTitle.nextSibling);
     }
     
     // 重置狀態
