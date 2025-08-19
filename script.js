@@ -655,14 +655,27 @@ class AppState {
         });
         
         if (this.comparisonResult) {
-            // 顯示比對結果
-            transcriptArea.innerHTML = `
-                <div class="text-center">
-                    <p class="text-sm text-slate-300 mb-2">識別結果：</p>
-                    <div class="text-lg">${this.comparisonResult.html}</div>
-                    <p class="text-xs text-slate-400 mt-2">準確度: ${this.comparisonResult.score}% · 點擊單字查看詳細回饋</p>
-                </div>
-            `;
+            // 根據內容類型決定顯示方式
+            const item = this.getCurrentItem();
+            if ('sentences' in item) {
+                // 句子練習：只顯示準確度
+                transcriptArea.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-sm text-slate-300 mb-2">識別結果：</p>
+                        <p class="text-lg font-semibold text-white">${this.transcript}</p>
+                        <p class="text-sm text-slate-400 mt-2">準確度: ${this.comparisonResult.score}% · 點擊上方單字查看詳細回饋</p>
+                    </div>
+                `;
+            } else {
+                // 單字/片語：顯示比對結果
+                transcriptArea.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-sm text-slate-300 mb-2">識別結果：</p>
+                        <div class="text-lg break-words">${this.comparisonResult.html}</div>
+                        <p class="text-xs text-slate-400 mt-2">準確度: ${this.comparisonResult.score}%</p>
+                    </div>
+                `;
+            }
         } else if (this.isListening) {
             // 錄音中的即時顯示
             let displayContent = '';
@@ -714,15 +727,54 @@ class AppState {
             // 單字和片語：顯示整體回饋在下方
             this.showDetailedFeedback(this.comparisonResult.details);
         } else if ('sentences' in item) {
-            // 句子：不自動顯示回饋，等待使用者點擊單字
+            // 句子：自動顯示簡化回饋在上方，等待使用者點擊單字查看詳細
+            this.showSentenceFeedback(this.comparisonResult.details);
             console.log('句子練習完成，請點擊上方單字查看詳細回饋');
-            // 可以選擇性地顯示一個簡單提示
-            this.showClickHint();
         }
         
         // 如果是挑戰模式，顯示下一題按鈕
         if (this.currentScreen === 'challengeScreen') {
             document.getElementById('nextBtn').classList.remove('hidden');
+        }
+    }
+
+    // 顯示句子回饋（簡化版，自動顯示在上方）
+    showSentenceFeedback(details) {
+        // 移除舊的回饋
+        document.getElementById('sentenceFeedback')?.remove();
+        
+        // 計算統計
+        const correct = details.filter(d => d.type === 'correct').length;
+        const close = details.filter(d => d.type === 'close').length;
+        const incorrect = details.filter(d => d.type === 'incorrect').length;
+        const missing = details.filter(d => d.type === 'missing').length;
+        const extra = details.filter(d => d.type === 'extra').length;
+        
+        let summary = [];
+        if (correct > 0) summary.push(`✅ ${correct}個正確`);
+        if (close > 0) summary.push(`🟡 ${close}個接近`);
+        if (incorrect > 0) summary.push(`❌ ${incorrect}個需改進`);
+        if (missing > 0) summary.push(`➖ ${missing}個遺漏`);
+        if (extra > 0) summary.push(`➕ ${extra}個多餘`);
+        
+        // 創建回饋區域
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.id = 'sentenceFeedback';
+        feedbackDiv.className = 'mt-4 p-4 bg-slate-800/30 border border-slate-700/30 rounded-xl';
+        feedbackDiv.innerHTML = `
+            <div class="text-center space-y-2">
+                <div class="text-sm text-slate-300">發音回饋</div>
+                <div class="text-sm text-slate-200 flex flex-wrap justify-center gap-2">
+                    ${summary.join(' · ')}
+                </div>
+                <div class="text-xs text-sky-300 mt-2">💡 點擊上方變色單字查看詳細建議</div>
+            </div>
+        `;
+        
+        // 插入到練習標題下方
+        const practiceTitle = document.getElementById('practiceTitle');
+        if (practiceTitle && practiceTitle.parentNode) {
+            practiceTitle.parentNode.insertBefore(feedbackDiv, practiceTitle.nextSibling);
         }
     }
 
@@ -854,7 +906,7 @@ class AppState {
                 
                 if (similarity >= 0.8) {
                     correctWordCount++;
-                    resultNodes.push(`<span class="correct-word clickable-word" data-word-index="${i}" data-feedback='{"type":"correct","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"✓ \\"${spokenWord}\\" 發音正確"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
+                    resultNodes.push(`<span class="correct-word clickable-word" data-word-index="${i}" data-feedback='${JSON.stringify({type:"correct",original:originalWord,spoken:spokenWord,similarity:similarity,message:`✓ "${spokenWord}" 發音正確`}).replace(/'/g, "&#39;")}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'correct',
                         original: originalWord,
@@ -865,7 +917,7 @@ class AppState {
                 } else if (similarity >= 0.5) {
                     correctWordCount += 0.7;
                     const suggestion = this.getPhoneticSuggestion(originalWord, spokenWord);
-                    resultNodes.push(`<span class="close-word clickable-word" data-word-index="${i}" data-feedback='{"type":"close","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"~ \\"${spokenWord}\\" 很接近了！標準發音：「${originalWord}」","suggestion":"${suggestion}"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
+                    resultNodes.push(`<span class="close-word clickable-word" data-word-index="${i}" data-feedback='${JSON.stringify({type:"close",original:originalWord,spoken:spokenWord,similarity:similarity,message:`~ "${spokenWord}" 很接近了！標準發音：「${originalWord}」`,suggestion:suggestion}).replace(/'/g, "&#39;")}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'close',
                         original: originalWord,
@@ -876,7 +928,7 @@ class AppState {
                     });
                 } else {
                     const suggestion = this.getPhoneticSuggestion(originalWord, spokenWord);
-                    resultNodes.push(`<span class="incorrect-word clickable-word" data-word-index="${i}" data-feedback='{"type":"incorrect","original":"${originalWord}","spoken":"${spokenWord}","similarity":${similarity},"message":"✗ \\"${spokenWord}\\" 與「${originalWord}」差異較大","suggestion":"${suggestion}"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
+                    resultNodes.push(`<span class="incorrect-word clickable-word" data-word-index="${i}" data-feedback='${JSON.stringify({type:"incorrect",original:originalWord,spoken:spokenWord,similarity:similarity,message:`✗ "${spokenWord}" 與「${originalWord}」差異較大`,suggestion:suggestion}).replace(/'/g, "&#39;")}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                     details.push({
                         type: 'incorrect',
                         original: originalWord,
@@ -887,14 +939,14 @@ class AppState {
                     });
                 }
             } else if (type === 'extra') {
-                resultNodes.push(`<span class="extra-word clickable-word" data-word-index="${i}" data-feedback='{"type":"extra","spoken":"${spokenWord}","message":"? 多說了「${spokenWord}」"}' title="點擊查看詳細回饋">${spokenWord} </span>`);
+                resultNodes.push(`<span class="extra-word clickable-word" data-word-index="${i}" data-feedback='${JSON.stringify({type:"extra",spoken:spokenWord,message:`? 多說了「${spokenWord}」`}).replace(/'/g, "&#39;")}' title="點擊查看詳細回饋">${spokenWord} </span>`);
                 details.push({
                     type: 'extra',
                     spoken: spokenWord,
                     message: `? 多說了「${spokenWord}」`
                 });
             } else if (type === 'missing') {
-                resultNodes.push(`<span class="missing-word clickable-word" data-word-index="${i}" data-feedback='{"type":"missing","original":"${originalWord}","message":"! 遺漏了「${originalWord}」"}' title="點擊查看詳細回饋">(${originalWord}) </span>`);
+                resultNodes.push(`<span class="missing-word clickable-word" data-word-index="${i}" data-feedback='${JSON.stringify({type:"missing",original:originalWord,message:`! 遺漏了「${originalWord}」`}).replace(/'/g, "&#39;")}' title="點擊查看詳細回饋">(${originalWord}) </span>`);
                 details.push({
                     type: 'missing',
                     original: originalWord,
@@ -1543,6 +1595,7 @@ function updatePracticeScreen() {
     document.getElementById('detailedFeedback')?.remove();
     document.getElementById('clickHint')?.remove();
     document.getElementById('wordFeedbackPopup')?.remove();
+    document.getElementById('sentenceFeedback')?.remove();
     
     const item = app.getCurrentItem();
     if (!item) return;
@@ -1556,7 +1609,7 @@ function updatePracticeScreen() {
         const sentence = item.sentences[app.currentPartIndex];
         const words = sentence.split(' ');
         const wordsHtml = words.map((word, index) => 
-            `<span class="word-default" data-word-index="${index}">${word}</span>`
+            `<span class="word-default clickable-word" data-word-index="${index}" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${word}</span>`
         ).join(' ');
         
         if (item.translation) {
@@ -1569,7 +1622,7 @@ function updatePracticeScreen() {
         }
     } else {
         // 單字或片語
-        practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
+        practiceTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>`;
     }
 
     
@@ -1592,6 +1645,11 @@ function updatePracticeScreen() {
     app.resetWordColors();
     app.updateRecordButton();
     app.resetTranscriptDisplay();
+    
+    // 重新綁定點擊事件
+    setTimeout(() => {
+        app.bindWordClickEvents();
+    }, 100);
 }
 
 // 更新導航按鈕狀態
