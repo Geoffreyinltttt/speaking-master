@@ -628,7 +628,7 @@ class AppState {
                 </svg>
                 <span>停止錄音</span>
             `;
-            recordBtn.className = 'btn-record-stop';
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 btn-record-stop';
         } else {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -636,7 +636,7 @@ class AppState {
                 </svg>
                 <span>開始錄音</span>
             `;
-            recordBtn.className = 'btn-record-start';
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 btn-record-start';
         }
     }
     
@@ -1797,11 +1797,11 @@ function updateChallengeScreen() {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                         </svg>
                     </button>
-                    <button id="recordBtn" onclick="toggleRecording()" class="inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                    <button id="recordBtn" onclick="toggleRecording()" class="inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 btn-record-start">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
                         </svg>
-                        錄音
+                        開始錄音
                     </button>
                 </div>
                 
@@ -1848,8 +1848,10 @@ function updateChallengeScreen() {
     app.transcript = '';
     app.comparisonResult = null;
     app.resetWordColors();
-    app.updateRecordButton();
     app.resetTranscriptDisplay();
+    
+    // 確保錄音按鈕狀態正確
+    app.updateRecordButton();
     
     // 重新綁定點擊事件
     setTimeout(() => {
