@@ -723,13 +723,28 @@ class AppState {
 
         // 根據內容類型決定是否顯示詳細回饋
         const item = this.getCurrentItem();
-        if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
-            // 單字和片語：顯示整體回饋在下方
-            this.showDetailedFeedback(this.comparisonResult.details);
-        } else if ('sentences' in item) {
-            // 句子：自動顯示簡化回饋在上方，等待使用者點擊單字查看詳細
-            this.showSentenceFeedback(this.comparisonResult.details);
-            console.log('句子練習完成，請點擊上方單字查看詳細回饋');
+        const isChallenge = this.currentScreen === 'challengeScreen';
+        
+        if (isChallenge) {
+            // 挑戰模式：根據題目類型決定回饋方式
+            const currentQuestion = this.challengeQuestions[this.currentQuestionIndex];
+            if (currentQuestion.type === 'vocabulary' || currentQuestion.type === 'idioms') {
+                // 單字和片語：顯示整體回饋在下方
+                this.showDetailedFeedback(this.comparisonResult.details);
+            } else {
+                // 句子：自動顯示簡化回饋在上方
+                this.showSentenceFeedback(this.comparisonResult.details);
+            }
+        } else {
+            // 練習模式：原有邏輯
+            if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
+                // 單字和片語：顯示整體回饋在下方
+                this.showDetailedFeedback(this.comparisonResult.details);
+            } else if ('sentences' in item) {
+                // 句子：自動顯示簡化回饋在上方
+                this.showSentenceFeedback(this.comparisonResult.details);
+                console.log('句子練習完成，請點擊上方單字查看詳細回饋');
+            }
         }
         
         // 如果是挑戰模式，顯示下一題按鈕
@@ -1776,7 +1791,7 @@ function updateChallengeScreen() {
             <div class="text-center space-y-6">
                 <div class="text-sm text-sky-300 font-medium">${typeName}</div>
                 <div id="challengeTitle" class="text-3xl sm:text-4xl font-bold mb-4 leading-relaxed">${practiceText}</div>
-                ${currentQuestion.translation ? `<div class="translation-text">${currentQuestion.translation}</div>` : ''}
+                ${currentQuestion.translation ? `<div class="translation-text mt-4">${currentQuestion.translation}</div>` : ''}
                 <div class="flex justify-center items-center gap-4">
                     <button onclick="speakText('${practiceText.replace(/'/g, "\\'")}', '${audioFile}')" class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 transition-all duration-300 hover:scale-110" title="聆聽發音">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -1793,7 +1808,7 @@ function updateChallengeScreen() {
                 
                 <!-- 轉錄顯示區域 -->
                 <div id="transcriptArea" class="mt-6 p-4 min-h-[80px] glass-tertiary rounded-xl transition-all duration-300">
-                    <p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>
+                    <p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>
                 </div>
             </div>
         </div>
@@ -1812,14 +1827,19 @@ function updateChallengeScreen() {
     const challengeTitle = document.getElementById('challengeTitle');
     const words = practiceText.split(' ');
     if (currentQuestion.type === 'vocabulary' || currentQuestion.type === 'idioms') {
-        // 單字和片語：一個整體
-        challengeTitle.innerHTML = `<span class="word-default" data-word-index="0">${practiceText}</span>`;
+        // 單字和片語：一個整體，加上可點擊屬性
+        challengeTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${practiceText}</span>`;
     } else {
-        // 句子：逐字分解
+        // 句子：逐字分解，每個字都可點擊
         const wordsHtml = words.map((word, index) => 
-            `<span class="word-default" data-word-index="${index}">${word}</span>`
+            `<span class="word-default clickable-word" data-word-index="${index}" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${word}</span>`
         ).join(' ');
-        challengeTitle.innerHTML = wordsHtml + (currentQuestion.translation ? `<div class="translation-text">${currentQuestion.translation}</div>` : '');
+        challengeTitle.innerHTML = wordsHtml;
+        
+        // 如果有翻譯，顯示在下方
+        if (currentQuestion.translation) {
+            challengeTitle.innerHTML += `<div class="translation-text mt-4">${currentQuestion.translation}</div>`;
+        }
     }
     
     // 重置狀態
@@ -1828,6 +1848,11 @@ function updateChallengeScreen() {
     app.resetWordColors();
     app.updateRecordButton();
     app.resetTranscriptDisplay();
+    
+    // 重新綁定點擊事件
+    setTimeout(() => {
+        app.bindWordClickEvents();
+    }, 100);
 }
 
 function nextChallenge() {
