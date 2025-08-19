@@ -1926,8 +1926,12 @@ function updateChallengeScreen() {
     
 // DOM 更新完成後，設置按鈕樣式和其他狀態
 setTimeout(() => {
-    // 確保按鈕狀態正確更新
-    app.updateRecordButton();
+    // 立即設置按鈕樣式（不依賴 updateRecordButton）
+    const recordBtn = document.getElementById('recordBtn');
+    if (recordBtn) {
+        recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+    }
+    
     app.resetWordColors();
     app.resetTranscriptDisplay();
     
@@ -1980,8 +1984,9 @@ function showChallengeResults() {
     showScreen('challengeResult');
 }
 
-// 錄音控制
 function toggleRecording() {
+    console.log('toggleRecording called, current state:', app.isListening);
+    
     if (app.isListening) {
         app.stopListening();
     } else {
@@ -1999,6 +2004,12 @@ function toggleRecording() {
             app.startListening();
         }
     }
+    
+    // 強制更新按鈕狀態（挑戰模式需要）
+    setTimeout(() => {
+        app.updateRecordButton();
+        app.updateTranscriptDisplay();
+    }, 100);
 }
 
 // 事件監聽器設定
@@ -2122,4 +2133,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
