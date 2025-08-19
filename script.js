@@ -1,3 +1,140 @@
+
+
+// 音標處理引擎
+class PhoneticEngine {
+    constructor() {
+        this.dict = window.PHONETIC_DICT || {};
+        this.features = window.PHONEME_FEATURES || {};
+        this.confusionPairs = window.CHINESE_CONFUSION_PAIRS || [];
+    }
+    
+    // 獲取單字音標
+    getPhonemes(word) {
+        const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+        return this.dict[cleanWord] ? this.dict[cleanWord].split(' ') : null;
+    }
+    
+    // 計算音標相似度
+    calculatePhoneticSimilarity(phonemes1, phonemes2) {
+        if (!phonemes1 || !phonemes2) return 0;
+        
+        const maxLength = Math.max(phonemes1.length, phonemes2.length);
+        if (maxLength === 0) return 1;
+        
+        let matches = 0;
+        const minLength = Math.min(phonemes1.length, phonemes2.length);
+        
+        for (let i = 0; i < minLength; i++) {
+            const phone1 = this.cleanPhoneme(phonemes1[i]);
+            const phone2 = this.cleanPhoneme(phonemes2[i]);
+            
+            if (phone1 === phone2) {
+                matches += 1;
+            } else if (this.arePhonemesSimilar(phone1, phone2)) {
+                matches += 0.7; // 相似音給部分分數
+            } else if (this.isChineseConfusion(phone1, phone2)) {
+                matches += 0.5; // 華語學習者常見混淆給更多容忍度
+            }
+        }
+        
+        return matches / maxLength;
+    }
+    
+    // 清理音標（移除重音標記）
+    cleanPhoneme(phoneme) {
+        return phoneme.replace(/[0-9]/g, '');
+    }
+    
+    // 判斷音標是否相似
+    arePhonemesSimilar(phone1, phone2) {
+        const features1 = this.features[phone1];
+        const features2 = this.features[phone2];
+        
+        if (!features1 || !features2) return false;
+        
+        // 同類音（都是母音或都是子音）且有相似特征
+        if (features1.type === features2.type) {
+            if (features1.type === 'vowel') {
+                return this.vowelSimilarity(features1, features2) > 0.6;
+            } else {
+                return this.consonantSimilarity(features1, features2) > 0.6;
+            }
+        }
+        
+        return false;
+    }
+    
+    // 檢查是否為華語學習者常見混淆
+    isChineseConfusion(phone1, phone2) {
+        return this.confusionPairs.some(pair => 
+            (pair[0] === phone1 && pair[1] === phone2) || 
+            (pair[0] === phone2 && pair[1] === phone1)
+        );
+    }
+    
+    // 母音相似度計算
+    vowelSimilarity(v1, v2) {
+        let similarity = 0;
+        if (v1.front === v2.front) similarity += 0.3;
+        if (v1.back === v2.back) similarity += 0.3;
+        if (v1.high === v2.high) similarity += 0.2;
+        if (v1.mid === v2.mid) similarity += 0.2;
+        return similarity;
+    }
+    
+    // 子音相似度計算
+    consonantSimilarity(c1, c2) {
+        let similarity = 0;
+        if (c1.place === c2.place) similarity += 0.4;
+        if (c1.manner === c2.manner) similarity += 0.4;
+        if (c1.voiced === c2.voiced) similarity += 0.2;
+        return similarity;
+    }
+    
+    // 生成發音建議
+    generatePhoneticFeedback(targetWord, spokenWord) {
+        const targetPhonemes = this.getPhonemes(targetWord);
+        const spokenPhonemes = this.getPhonemes(spokenWord);
+        
+        if (!targetPhonemes) {
+            return { message: `無法找到「${targetWord}」的音標資料` };
+        }
+        
+        if (!spokenPhonemes) {
+            return { message: `無法識別「${spokenWord}」的發音` };
+        }
+        
+        const feedback = [];
+        const similarity = this.calculatePhoneticSimilarity(targetPhonemes, spokenPhonemes);
+        
+        // 逐音標比較
+        for (let i = 0; i < Math.max(targetPhonemes.length, spokenPhonemes.length); i++) {
+            const target = targetPhonemes[i] ? this.cleanPhoneme(targetPhonemes[i]) : null;
+            const spoken = spokenPhonemes[i] ? this.cleanPhoneme(spokenPhonemes[i]) : null;
+            
+            if (target && !spoken) {
+                feedback.push(`音節 ${i + 1}: 缺少 /${target}/ 音`);
+            } else if (!target && spoken) {
+                feedback.push(`音節 ${i + 1}: 多了 /${spoken}/ 音`);
+            } else if (target && spoken && target !== spoken) {
+                if (this.isChineseConfusion(target, spoken)) {
+                    feedback.push(`音節 ${i + 1}: /${spoken}/ → /${target}/ (華語學習者常見混淆)`);
+                } else {
+                    feedback.push(`音節 ${i + 1}: /${spoken}/ → /${target}/`);
+                }
+            }
+        }
+        
+        return {
+            similarity: similarity,
+            targetPhonemes: targetPhonemes.join(' '),
+            spokenPhonemes: spokenPhonemes.join(' '),
+            feedback: feedback,
+            message: similarity > 0.8 ? '發音很棒！' : similarity > 0.6 ? '發音不錯，再練習一下' : '需要多加練習'
+        };
+    }
+}
+
 // 練習內容數據 - 從 Excel 載入
 let vocabulary = [];
 let idioms = [];
@@ -147,6 +284,9 @@ class AppState {
         this.interimTranscript = '';
         this.comparisonResult = null;
         
+		// 初始化音標引擎
+this.phoneticEngine = new PhoneticEngine();
+
         this.initSpeechRecognition();
     }
         
@@ -339,16 +479,16 @@ if (this.comparisonResult.details && this.comparisonResult.details.length > 0) {
     
 
 showDetailedFeedback(details) {
-    // 移除舊的反饋區域
+    // 移除舊的回饋區域
     const oldFeedback = document.getElementById('detailedFeedback');
     if (oldFeedback) oldFeedback.remove();
     
-    // 創建新的反饋區域
+    // 創建新的回饋區域
     const feedbackDiv = document.createElement('div');
     feedbackDiv.id = 'detailedFeedback';
     feedbackDiv.className = 'mt-6 p-4 glass-tertiary rounded-xl';
     
-    let feedbackHTML = '<h4 class="text-lg font-semibold text-sky-400 mb-3">📝 詳細反饋</h4>';
+    let feedbackHTML = '<h4 class="text-lg font-semibold text-sky-400 mb-3">🔍 詳細回饋</h4>';
     
     details.forEach(detail => {
         const icon = {
@@ -356,14 +496,36 @@ showDetailedFeedback(details) {
             'close': '🟡',
             'incorrect': '❌',
             'extra': '➕',
-            'missing': '➖'
+            'missing': '➖',
+            'phonetic': '🔊'
         }[detail.type] || '•';
         
-        feedbackHTML += `<div class="mb-2 p-2 rounded-lg bg-slate-800/50">`;
-        feedbackHTML += `<p class="text-sm text-slate-200">${icon} ${detail.message}</p>`;
+        feedbackHTML += `<div class="mb-3 p-3 rounded-lg bg-slate-800/50">`;
+        feedbackHTML += `<p class="text-sm text-slate-200 mb-2">${icon} ${detail.message}</p>`;
         
+        // 顯示音標資訊（如果有的話）
+        if (detail.targetPhonemes && detail.spokenPhonemes) {
+            feedbackHTML += `
+                <div class="text-xs text-slate-300 ml-4 space-y-1">
+                    <p>🎯 標準音標: /${detail.targetPhonemes}/</p>
+                    <p>🗣️ 您的發音: /${detail.spokenPhonemes}/</p>
+                </div>
+            `;
+        }
+        
+        // 顯示音標層級的建議
+        if (detail.phoneticFeedback && detail.phoneticFeedback.length > 0) {
+            feedbackHTML += `<div class="text-xs text-yellow-300 mt-2 ml-4">`;
+            feedbackHTML += `<p class="font-medium">🎵 音標分析：</p>`;
+            detail.phoneticFeedback.forEach(feedback => {
+                feedbackHTML += `<p class="ml-2">• ${feedback}</p>`;
+            });
+            feedbackHTML += `</div>`;
+        }
+        
+        // 一般建議
         if (detail.suggestion) {
-            feedbackHTML += `<p class="text-xs text-yellow-300 mt-1">💡 ${detail.suggestion}</p>`;
+            feedbackHTML += `<p class="text-xs text-yellow-300 mt-2">💡 ${detail.suggestion}</p>`;
         }
         
         feedbackHTML += `</div>`;
@@ -371,7 +533,7 @@ showDetailedFeedback(details) {
     
     feedbackDiv.innerHTML = feedbackHTML;
     
-    // 將反饋插入到練習區域下方
+    // 將回饋插入到練習區域下方
     const practiceUnit = document.querySelector('.space-y-8') || document.querySelector('.challenge-practice-unit');
     if (practiceUnit) {
         practiceUnit.appendChild(feedbackDiv);
@@ -411,8 +573,7 @@ getCurrentList() {
 }
 
     
-    // 文字比對和著色功能
-    compareAndColorize(original, spoken) {
+compareAndColorize(original, spoken) {
     const originalWords = this.getWords(original);
     const spokenWords = this.getWords(spoken);
     
@@ -425,50 +586,106 @@ getCurrentList() {
         };
     }
     
+    // 如果是單字或片語（只有一個詞），使用音標分析
+    if (originalWords.length === 1 && spokenWords.length === 1) {
+        return this.compareWordsWithPhonetics(originalWords[0], spokenWords[0]);
+    }
+    
+    // 多詞句子：結合文字比對和音標分析
+    return this.compareSentenceWithPhonetics(originalWords, spokenWords);
+}
+
+// 新增：單字音標比對方法
+compareWordsWithPhonetics(originalWord, spokenWord) {
+    const phoneticAnalysis = this.phoneticEngine.generatePhoneticFeedback(originalWord, spokenWord);
+    const textSimilarity = this.calculateWordSimilarity(originalWord, spokenWord);
+    
+    // 結合音標相似度和文字相似度
+    const phoneticSimilarity = phoneticAnalysis.similarity || 0;
+    const finalScore = Math.round((phoneticSimilarity * 0.7 + textSimilarity * 0.3) * 100);
+    const isCorrect = finalScore >= 70;
+    
+    // 生成顏色標記的 HTML
+    const className = isCorrect ? 'correct-word' : finalScore >= 50 ? 'close-word' : 'incorrect-word';
+    const html = `<span class="${className}" title="音標分析: ${finalScore}%">${spokenWord}</span>`;
+    
+    // 生成詳細回饋
+    const details = [{
+        type: isCorrect ? 'correct' : 'phonetic',
+        original: originalWord,
+        spoken: spokenWord,
+        similarity: phoneticSimilarity,
+        textSimilarity: textSimilarity,
+        message: phoneticAnalysis.message,
+        phoneticFeedback: phoneticAnalysis.feedback,
+        targetPhonemes: phoneticAnalysis.targetPhonemes,
+        spokenPhonemes: phoneticAnalysis.spokenPhonemes
+    }];
+    
+    return {
+        html: html,
+        isCorrect: isCorrect,
+        score: finalScore,
+        details: details,
+        phoneticAnalysis: phoneticAnalysis
+    };
+}
+
+// 新增：句子音標比對方法
+compareSentenceWithPhonetics(originalWords, spokenWords) {
     let correctWordCount = 0;
     const resultNodes = [];
     const details = [];
-    const maxLength = Math.max(originalWords.length, spokenWords.length);
     
-    // 使用動態規劃進行更智能的單字對齊
+    // 使用現有的對齊算法
     const alignment = this.alignWords(originalWords, spokenWords);
     
     for (let i = 0; i < alignment.length; i++) {
         const { original: originalWord, spoken: spokenWord, type } = alignment[i];
         
         if (type === 'match') {
-            const similarity = this.calculateWordSimilarity(originalWord, spokenWord);
+            // 對每個匹配的詞進行音標分析
+            const phoneticAnalysis = this.phoneticEngine.generatePhoneticFeedback(originalWord, spokenWord);
+            const textSimilarity = this.calculateWordSimilarity(originalWord, spokenWord);
+            const phoneticSimilarity = phoneticAnalysis.similarity || 0;
             
-            if (similarity >= 0.6) { // 降低到 60% 相似度
+            // 結合兩種相似度
+            const combinedSimilarity = (phoneticSimilarity * 0.6 + textSimilarity * 0.4);
+            
+            if (combinedSimilarity >= 0.7) {
                 correctWordCount++;
-                resultNodes.push(`<span class="correct-word" title="✓ 發音正確 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+                resultNodes.push(`<span class="correct-word" title="✓ 發音正確 (${Math.round(combinedSimilarity * 100)}%)">${spokenWord} </span>`);
                 details.push({
                     type: 'correct',
                     original: originalWord,
                     spoken: spokenWord,
-                    similarity: similarity,
-                    message: `✓ "${spokenWord}" 發音正確`
+                    similarity: combinedSimilarity,
+                    message: `✓ "${spokenWord}" 發音正確`,
+                    phoneticSimilarity: phoneticSimilarity,
+                    textSimilarity: textSimilarity
                 });
-            } else if (similarity >= 0.35) { // 降低接近標準到 35%
-                correctWordCount += 0.8; // 給予更高的部分分數
-                resultNodes.push(`<span class="close-word" title="~ 接近正確 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+            } else if (combinedSimilarity >= 0.5) {
+                correctWordCount += 0.8;
+                resultNodes.push(`<span class="close-word" title="~ 接近正確 (${Math.round(combinedSimilarity * 100)}%)">${spokenWord} </span>`);
                 details.push({
                     type: 'close',
                     original: originalWord,
                     spoken: spokenWord,
-                    similarity: similarity,
+                    similarity: combinedSimilarity,
                     message: `~ "${spokenWord}" 很接近了！標準發音：「${originalWord}」`,
-                    suggestion: this.getPhoneticSuggestion(originalWord, spokenWord)
+                    suggestion: this.getEnhancedPhoneticSuggestion(originalWord, spokenWord, phoneticAnalysis),
+                    phoneticFeedback: phoneticAnalysis.feedback
                 });
             } else {
-                resultNodes.push(`<span class="incorrect-word" title="✗ 需要改進 (${Math.round(similarity * 100)}%)">${spokenWord} </span>`);
+                resultNodes.push(`<span class="incorrect-word" title="✗ 需要改進 (${Math.round(combinedSimilarity * 100)}%)">${spokenWord} </span>`);
                 details.push({
                     type: 'incorrect',
                     original: originalWord,
                     spoken: spokenWord,
-                    similarity: similarity,
+                    similarity: combinedSimilarity,
                     message: `✗ "${spokenWord}" 與「${originalWord}」差異較大`,
-                    suggestion: this.getPhoneticSuggestion(originalWord, spokenWord)
+                    suggestion: this.getEnhancedPhoneticSuggestion(originalWord, spokenWord, phoneticAnalysis),
+                    phoneticFeedback: phoneticAnalysis.feedback
                 });
             }
         } else if (type === 'extra') {
@@ -488,9 +705,8 @@ getCurrentList() {
         }
     }
     
-    // 更寬鬆的判定標準
     const accuracy = originalWords.length > 0 ? (correctWordCount / originalWords.length) : 0;
-    const isCorrect = accuracy >= 0.7; // 降低到 70% 準確度
+    const isCorrect = accuracy >= 0.7;
     const score = Math.round(accuracy * 100);
     
     return { 
@@ -501,57 +717,14 @@ getCurrentList() {
     };
 }
 
-// 智能單字對齊算法 - 處理口音和語速差異
-alignWords(original, spoken) {
-    const dp = Array(original.length + 1).fill(null).map(() => 
-        Array(spoken.length + 1).fill(null).map(() => ({ cost: Infinity, path: [] }))
-    );
-    
-    // 初始化
-    dp[0][0] = { cost: 0, path: [] };
-    
-    // 填充 DP 表格
-    for (let i = 0; i <= original.length; i++) {
-        for (let j = 0; j <= spoken.length; j++) {
-            if (dp[i][j].cost === Infinity) continue;
-            
-            // 匹配
-            if (i < original.length && j < spoken.length) {
-                const similarity = this.calculateWordSimilarity(original[i], spoken[j]);
-                const cost = 1 - similarity; // 相似度越高，成本越低
-                if (dp[i][j].cost + cost < dp[i + 1][j + 1].cost) {
-                    dp[i + 1][j + 1] = {
-                        cost: dp[i][j].cost + cost,
-                        path: [...dp[i][j].path, { original: original[i], spoken: spoken[j], type: 'match' }]
-                    };
-                }
-            }
-            
-            // 刪除（原文有，語音沒有）
-            if (i < original.length) {
-                const cost = 0.8; // 遺漏的懲罰較輕
-                if (dp[i][j].cost + cost < dp[i + 1][j].cost) {
-                    dp[i + 1][j] = {
-                        cost: dp[i][j].cost + cost,
-                        path: [...dp[i][j].path, { original: original[i], spoken: null, type: 'missing' }]
-                    };
-                }
-            }
-            
-            // 插入（語音有，原文沒有）
-            if (j < spoken.length) {
-                const cost = 0.6; // 多說的懲罰更輕
-                if (dp[i][j].cost + cost < dp[i][j + 1].cost) {
-                    dp[i][j + 1] = {
-                        cost: dp[i][j].cost + cost,
-                        path: [...dp[i][j].path, { original: null, spoken: spoken[j], type: 'extra' }]
-                    };
-                }
-            }
-        }
+// 新增：增強版發音建議
+getEnhancedPhoneticSuggestion(targetWord, spokenWord, phoneticAnalysis) {
+    if (phoneticAnalysis && phoneticAnalysis.feedback && phoneticAnalysis.feedback.length > 0) {
+        return phoneticAnalysis.feedback[0]; // 取第一個最重要的建議
     }
     
-    return dp[original.length][spoken.length].path;
+    // 回退到原有的建議系統
+    return this.getPhoneticSuggestion(targetWord, spokenWord);
 }
 
 // 提供發音建議
