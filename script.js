@@ -619,25 +619,39 @@ class AppState {
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) return;
+        if (!recordBtn) {
+            console.log('找不到錄音按鈕');
+            return;
+        }
+        
+        console.log('更新錄音按鈕狀態，isListening:', this.isListening);
         
         if (this.isListening) {
             recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
                 </svg>
                 <span>停止錄音</span>
             `;
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 btn-record-stop';
+            // 完全重寫 class 和 style
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+            recordBtn.style.background = 'linear-gradient(to right, rgb(239, 68, 68), rgb(220, 38, 38))';
+            recordBtn.style.setProperty('background', 'linear-gradient(to right, rgb(239, 68, 68), rgb(220, 38, 38))', 'important');
         } else {
             recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
                 </svg>
                 <span>開始錄音</span>
             `;
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 btn-record-start';
+            // 完全重寫 class 和 style
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+            recordBtn.style.background = 'linear-gradient(to right, rgb(16, 185, 129), rgb(5, 150, 105))';
+            recordBtn.style.setProperty('background', 'linear-gradient(to right, rgb(16, 185, 129), rgb(5, 150, 105))', 'important');
         }
+        
+        console.log('錄音按鈕更新完成，當前 className:', recordBtn.className);
+        console.log('錄音按鈕更新完成，當前 style.background:', recordBtn.style.background);
     }
     
     updateTranscriptDisplay() {
