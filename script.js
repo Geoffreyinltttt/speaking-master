@@ -543,29 +543,67 @@ class AppState {
         };
     }
     
-    startListening() {
-        // 檢查是否被禁用
-        if (window.speechDisabled) {
-            alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
-            return;
-        }
-        
-        if (!this.recognition || this.isListening) return;
-        
-        this.transcript = '';
-        this.interimTranscript = '';
-        this.comparisonResult = null;
-        this.resetWordColors();
-        
+   startListening() {
+    // 檢查是否被禁用
+    if (window.speechDisabled) {
+        alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
+        return;
+    }
+    
+    if (!this.recognition || this.isListening) return;
+    
+    // 確保所有音頻播放都已停止
+    this.ensureAudioStopped();
+    
+    this.transcript = '';
+    this.interimTranscript = '';
+    this.comparisonResult = null;
+    this.resetWordColors();
+    
+    // 增加延遲確保音頻設備完全釋放
+    setTimeout(() => {
         try {
             this.recognition.start();
             this.isListening = true;
             this.updateRecordButton();
         } catch (e) {
             console.error('語音辨識無法啟動:', e);
+            // 如果失敗，再試一次
+            setTimeout(() => {
+                try {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.updateRecordButton();
+                } catch (e2) {
+                    console.error('語音辨識第二次嘗試也失敗:', e2);
+                    alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
+                }
+            }, 1000);
         }
-    }
+    }, 200);
+}
 
+
+
+	// 確保所有音頻播放停止
+ensureAudioStopped() {
+    // 停止所有 HTML audio 元素
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+        if (!audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    });
+    
+    // 停止語音合成
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+    
+    console.log('All audio playback stopped');
+}
+	
     stopListening() {
         if (!this.recognition || !this.isListening) return;
         
@@ -1246,33 +1284,34 @@ function showScreen(screenId) {
 
 // 語音合成功能 - 支持音檔和 TTS
 function speakText(text, audioFile = null) {
-    console.log('speakText called with:', { text, audioFile }); // 調試用
+    console.log('speakText called with:', { text, audioFile });
+    
+    // 如果正在錄音，先停止
+    if (app.isListening) {
+        app.stopListening();
+        console.log('Stopped recording before playing audio');
+    }
     
     // 如果有音檔，優先播放音檔
     if (audioFile && audioFile.trim()) {
-        console.log('Attempting to play audio file:', audioFile); // 調試用
+        console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
-        audio.onloadstart = function() {
-            console.log('Audio loading started');
-        };
-        
-        audio.oncanplaythrough = function() {
-            console.log('Audio can play through');
+        // 確保音頻完全停止後才允許錄音
+        audio.onended = function() {
+            console.log('Audio playback ended, enabling recording after delay');
+            // 增加延遲確保音頻設備完全釋放
+            setTimeout(() => {
+                console.log('Audio device should be ready for recording now');
+            }, 500);
         };
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
             console.log('Falling back to TTS');
-            // 音檔載入失敗時，使用 TTS
             speakWithTTS(text);
         };
         
-        audio.onended = function() {
-            console.log('Audio playback ended');
-        };
-        
-        // 嘗試播放音檔
         audio.play().then(() => {
             console.log('Audio playing successfully');
         }).catch(error => {
@@ -1282,18 +1321,28 @@ function speakText(text, audioFile = null) {
         });
     } else {
         console.log('No audio file provided, using TTS');
-        // 沒有音檔時使用 TTS
         speakWithTTS(text);
     }
 }
 
 function speakWithTTS(text) {
-    console.log('Using TTS for:', text); // 調試用
+    console.log('Using TTS for:', text);
     if ('speechSynthesis' in window) {
+        // 停止任何正在進行的語音合成
         window.speechSynthesis.cancel();
+        
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 0.9;
+        
+        // TTS 結束後確保設備釋放
+        utterance.onend = function() {
+            console.log('TTS ended, audio device released');
+            setTimeout(() => {
+                console.log('Ready for recording after TTS');
+            }, 300);
+        };
+        
         window.speechSynthesis.speak(utterance);
     }
 }
@@ -1658,12 +1707,23 @@ function showChallengeResults() {
     showScreen('challengeResult');
 }
 
-// 錄音控制
 function toggleRecording() {
     if (app.isListening) {
         app.stopListening();
     } else {
-        app.startListening();
+        // 檢查是否有音頻正在播放
+        const hasActiveAudio = document.querySelector('audio:not([paused])') || 
+                             ('speechSynthesis' in window && window.speechSynthesis.speaking);
+        
+        if (hasActiveAudio) {
+            // 如果有音頻在播放，先停止然後延遲開始錄音
+            app.ensureAudioStopped();
+            setTimeout(() => {
+                app.startListening();
+            }, 500);
+        } else {
+            app.startListening();
+        }
     }
 }
 
@@ -1788,3 +1848,4 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
