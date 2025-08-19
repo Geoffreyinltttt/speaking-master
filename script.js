@@ -619,12 +619,11 @@ class AppState {
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) {
-            console.log('找不到錄音按鈕');
-            return;
-        }
+        if (!recordBtn) return;
         
-        console.log('更新錄音按鈕狀態，isListening:', this.isListening);
+        // 強制移除所有現有的樣式類別
+        recordBtn.removeAttribute('class');
+        recordBtn.removeAttribute('style');
         
         if (this.isListening) {
             recordBtn.innerHTML = `
@@ -633,10 +632,7 @@ class AppState {
                 </svg>
                 <span>停止錄音</span>
             `;
-            // 完全重寫 class 和 style
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-            recordBtn.style.background = 'linear-gradient(to right, rgb(239, 68, 68), rgb(220, 38, 38))';
-            recordBtn.style.setProperty('background', 'linear-gradient(to right, rgb(239, 68, 68), rgb(220, 38, 38))', 'important');
+            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
         } else {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -644,14 +640,8 @@ class AppState {
                 </svg>
                 <span>開始錄音</span>
             `;
-            // 完全重寫 class 和 style
-            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
-            recordBtn.style.background = 'linear-gradient(to right, rgb(16, 185, 129), rgb(5, 150, 105))';
-            recordBtn.style.setProperty('background', 'linear-gradient(to right, rgb(16, 185, 129), rgb(5, 150, 105))', 'important');
+            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
         }
-        
-        console.log('錄音按鈕更新完成，當前 className:', recordBtn.className);
-        console.log('錄音按鈕更新完成，當前 style.background:', recordBtn.style.background);
     }
     
     updateTranscriptDisplay() {
@@ -1816,7 +1806,7 @@ function updateChallengeScreen() {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                         </svg>
                     </button>
-                    <button id="recordBtn" onclick="toggleRecording()" class="inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                    <button id="recordBtn" onclick="toggleRecording()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
                         </svg>
@@ -1863,13 +1853,16 @@ function updateChallengeScreen() {
         challengeTitle.parentNode.insertBefore(translationDiv, challengeTitle.nextSibling);
     }
     
-    // DOM 更新完成後，重置其他狀態
+    // DOM 更新完成後，設置按鈕樣式和其他狀態
     setTimeout(() => {
+        // 立即設置按鈕樣式（不依賴 updateRecordButton）
+        const recordBtn = document.getElementById('recordBtn');
+        if (recordBtn) {
+            recordBtn.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+        }
+        
         app.resetWordColors();
         app.resetTranscriptDisplay();
-        
-        // 確保錄音按鈕狀態正確（新按鈕已創建）
-        app.updateRecordButton();
         
         // 重新綁定點擊事件
         app.bindWordClickEvents();
