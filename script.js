@@ -4,6 +4,123 @@ let idioms = [];
 let passages = [];
 let dataLoaded = false;
 
+// 瀏覽器相容性檢測
+function checkBrowserCompatibility() {
+    const isCompatible = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+    
+    if (!isCompatible) {
+        // 顯示不相容警告
+        showBrowserCompatibilityWarning();
+        return false;
+    }
+    
+    return true;
+}
+
+function showBrowserCompatibilityWarning() {
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'browserWarning';
+    warningDiv.className = 'fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    warningDiv.innerHTML = `
+        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center">
+            <div class="text-yellow-400 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">瀏覽器不支援語音識別</h3>
+            <p class="text-slate-300 mb-6 leading-relaxed">
+                您目前使用的瀏覽器不支援 Web Speech API。<br>
+                建議您使用以下瀏覽器以獲得最佳體驗：
+            </p>
+            
+            <div class="text-left mb-6 space-y-2">
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Google Chrome（推薦）</span>
+                </div>
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Microsoft Edge</span>
+                </div>
+                <div class="flex items-center gap-3 text-yellow-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Safari（有限支援）</span>
+                </div>
+                <div class="flex items-center gap-3 text-red-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Firefox（不支援）</span>
+                </div>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="proceedWithoutSpeech()" class="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-300">
+                    仍要繼續使用（無語音功能）
+                </button>
+                <button onclick="dismissWarning()" class="w-full px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-xl transition-all duration-300">
+                    我知道了
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-400 mt-4">
+                💡 提示：您仍可以使用聆聽功能來學習正確發音
+            </p>
+        </div>
+    `;
+    
+    document.body.appendChild(warningDiv);
+}
+
+function proceedWithoutSpeech() {
+    const warning = document.getElementById('browserWarning');
+    if (warning) warning.remove();
+    
+    // 設定全域標記，表示無語音功能
+    window.speechDisabled = true;
+    
+    // 禁用所有錄音按鈕
+    disableRecordingFeatures();
+}
+
+function dismissWarning() {
+    const warning = document.getElementById('browserWarning');
+    if (warning) warning.remove();
+}
+
+function disableRecordingFeatures() {
+    // 隱藏或禁用錄音按鈕的通用函數
+    const style = document.createElement('style');
+    style.textContent = `
+        #recordBtn {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        #recordBtn::after {
+            content: '（不支援語音輸入）';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #ef4444;
+            white-space: nowrap;
+        }
+        #transcriptArea {
+            opacity: 0.5;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // 自動載入 Excel 數據
 async function loadDataFromFile() {
     const loadingStatus = document.getElementById('loadingStatus');
@@ -151,7 +268,8 @@ class AppState {
     }
         
     initSpeechRecognition() {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        // 檢查瀏覽器相容性
+        if (!checkBrowserCompatibility()) {
             console.error('瀏覽器不支持語音識別');
             return;
         }
@@ -162,44 +280,69 @@ class AppState {
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
 
-        // 嘗試減少自動校正和文字處理
-        this.recognition.maxAlternatives = 1; // 只要第一個識別結果
-        this.recognition.serviceURI = null; // 不使用雲端服務（如果支持）
-
-        // 對於 Chrome/Edge，嘗試使用更直接的語音識別設定
+        // 優化語音識別設定，讓反應更即時
+        this.recognition.maxAlternatives = 1;
+        
+        // 對於 Chrome/Edge，設定更積極的即時結果
         if (this.recognition.webkitSpeechRecognition) {
-            // 設定較短的無聲間隔來減少處理時間
             this.recognition.webkitContinuous = true;
             this.recognition.webkitInterimResults = true;
         }
 
-        
+        this.recognition.onstart = () => {
+            console.log('語音識別已啟動');
+            this.updateTranscriptDisplay(); // 立即更新顯示
+        };
+
         this.recognition.onresult = (event) => {
             let finalTranscript = '';
             let interim = '';
             
+            console.log('語音識別結果事件觸發，結果數量:', event.results.length);
+            
             for (let i = event.resultIndex; i < event.results.length; ++i) {
+                const result = event.results[i][0];
+                console.log(`結果 ${i}: "${result.transcript}" (信心度: ${result.confidence}, 是否最終: ${event.results[i].isFinal})`);
+                
                 if (event.results[i].isFinal) {
-                    const result = event.results[i][0];
-                    console.log('Speech recognition confidence:', result.confidence);
-                    console.log('Raw transcript:', result.transcript);
-                    
                     if (result.confidence > 0.3) {
                         finalTranscript += result.transcript;
                     }
                 } else {
-                    interim += event.results[i][0].transcript;
+                    interim += result.transcript;
                 }
             }
             
             this.interimTranscript = interim;
             this.transcript += finalTranscript;
             
+            console.log('當前轉錄狀態:', {
+                final: this.transcript,
+                interim: this.interimTranscript,
+                isListening: this.isListening
+            });
+            
             // 即時更新文字顏色
             this.updateWordColors();
             
             // 即時更新轉錄顯示
             this.updateTranscriptDisplay();
+        };
+
+        this.recognition.onspeechstart = () => {
+            console.log('檢測到語音開始');
+        };
+
+        this.recognition.onspeechend = () => {
+            console.log('檢測到語音結束');
+        };
+
+        this.recognition.onaudiostart = () => {
+            console.log('音頻捕獲開始');
+        };
+
+        this.recognition.onaudioend = () => {
+            console.log('音頻捕獲結束');
         };
 
         
@@ -233,6 +376,12 @@ class AppState {
     }
     
     startListening() {
+        // 檢查是否被禁用
+        if (window.speechDisabled) {
+            alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
+            return;
+        }
+        
         if (!this.recognition || this.isListening) return;
         
         this.transcript = '';
@@ -288,14 +437,28 @@ class AppState {
     updateTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
         if (!transcriptArea) {
-            // 如果沒有找到轉錄區域，可能是在列表頁面，直接返回
+            console.log('找不到轉錄顯示區域');
             return;
         }
         
+        console.log('更新轉錄顯示:', {
+            isListening: this.isListening,
+            transcript: this.transcript,
+            interim: this.interimTranscript,
+            hasComparison: !!this.comparisonResult
+        });
+        
         if (this.comparisonResult) {
-            transcriptArea.innerHTML = this.comparisonResult.html;
+            // 顯示比對結果
+            transcriptArea.innerHTML = `
+                <div class="text-center">
+                    <p class="text-sm text-slate-300 mb-2">識別結果：</p>
+                    <div class="text-lg">${this.comparisonResult.html}</div>
+                    <p class="text-xs text-slate-400 mt-2">準確度: ${this.comparisonResult.score}%</p>
+                </div>
+            `;
         } else if (this.isListening) {
-            // 即時顯示語音識別結果
+            // 錄音中的即時顯示
             let displayContent = '';
             
             // 顯示已確定的文字（白色）
@@ -303,20 +466,30 @@ class AppState {
                 displayContent += `<span class="text-white font-medium">${this.transcript}</span>`;
             }
             
-            // 顯示正在識別的文字（灰色，表示尚未確定）
+            // 顯示正在識別的文字（淺藍色，表示暫時的）
             if (this.interimTranscript) {
-                displayContent += `<span class="text-slate-400 italic">${this.interimTranscript}</span>`;
-            } else if (!this.transcript) {
-                displayContent = '<span class="text-slate-500 italic">正在聆聽...</span>';
+                displayContent += `<span class="text-blue-300 italic ml-1">${this.interimTranscript}</span>`;
+            }
+            
+            // 如果都沒有文字，顯示聆聽狀態
+            if (!this.transcript && !this.interimTranscript) {
+                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽... 請開始說話</span>';
             }
             
             // 加入閃爍的錄音指示器
-            displayContent += '<span class="ml-2 inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>';
+            displayContent += '<span class="ml-2 inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>';
             
-            transcriptArea.innerHTML = `<p class="text-center">${displayContent}</p>`;
+            transcriptArea.innerHTML = `<div class="text-center">${displayContent}</div>`;
         } else if (this.transcript) {
-            transcriptArea.innerHTML = `<p class="text-slate-200 text-center">${this.transcript}</p>`;
+            // 錄音結束後顯示最終結果
+            transcriptArea.innerHTML = `
+                <div class="text-center">
+                    <p class="text-sm text-slate-300 mb-2">您說的是：</p>
+                    <p class="text-white font-medium text-lg">${this.transcript}</p>
+                </div>
+            `;
         } else {
+            // 初始狀態
             transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>';
         }
     }
@@ -821,6 +994,14 @@ class AppState {
         });
     }
 
+    // 重置轉錄顯示區域
+    resetTranscriptDisplay() {
+        const transcriptArea = document.getElementById('transcriptArea');
+        if (transcriptArea) {
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>';
+        }
+    }
+
     // 在這裡加入新的方法
     resetAllStates() {
         // 停止語音識別
@@ -846,6 +1027,9 @@ class AppState {
         
         // 重置單字顏色
         this.resetWordColors();
+        
+        // 重置轉錄顯示
+        this.resetTranscriptDisplay();
     }
 
 } // ← AppState 類別的結束括號
@@ -1074,6 +1258,7 @@ function updatePracticeScreen() {
     app.comparisonResult = null;
     app.resetWordColors();
     app.updateRecordButton();
+    app.resetTranscriptDisplay();
 }
 
 // 更新導航按鈕狀態
@@ -1252,6 +1437,7 @@ function updateChallengeScreen() {
     app.comparisonResult = null;
     app.resetWordColors();
     app.updateRecordButton();
+    app.resetTranscriptDisplay();
 }
 
 function nextChallenge() {
@@ -1309,6 +1495,9 @@ function toggleRecording() {
 
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
+    // 首先檢查瀏覽器相容性
+    checkBrowserCompatibility();
+    
     // 自動載入數據
     loadDataFromFile();
     
@@ -1417,3 +1606,5 @@ window.toggleRecording = toggleRecording;
 window.speakText = speakText;
 window.nextChallenge = nextChallenge;
 window.loadDataFromFile = loadDataFromFile;
+window.proceedWithoutSpeech = proceedWithoutSpeech;
+window.dismissWarning = dismissWarning;
