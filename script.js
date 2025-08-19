@@ -197,6 +197,9 @@ class AppState {
             
             // 即時更新文字顏色
             this.updateWordColors();
+            
+            // 即時更新轉錄顯示
+            this.updateTranscriptDisplay();
         };
 
         
@@ -1211,6 +1214,11 @@ function updateChallengeScreen() {
                         </svg>
                         開始錄音
                     </button>
+                </div>
+                
+                <!-- 轉錄顯示區域 -->
+                <div id="transcriptArea" class="mt-6 p-4 min-h-[80px] glass-tertiary rounded-xl transition-all duration-300">
+                    <p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>
                 </div>
             </div>
         </div>
