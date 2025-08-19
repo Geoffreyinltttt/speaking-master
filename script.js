@@ -1546,70 +1546,66 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
-    // 清理之前的回饋內容
-    const oldFeedback = document.getElementById('detailedFeedback');
-    if (oldFeedback) oldFeedback.remove();
-    
-    const item = app.getCurrentItem();
-    if (!item) return;
-    
-    const practiceTitle = document.getElementById('practiceTitle');
-    const practiceSubtitle = document.getElementById('practiceSubtitle');
-    const practiceText = document.getElementById('practiceText');
-    const favoriteBtn = document.getElementById('favoriteBtn');
-    const partNavigation = document.getElementById('partNavigation');
-    
-    // 更新標題 - 顯示練習內容
-    if ('sentences' in item) {
-        const sentence = item.sentences[app.currentPartIndex];
-        const words = sentence.split(' ');
-        const wordsHtml = words.map((word, index) => 
-            `<span class="word-default" data-word-index="${index}">${word}</span>`
-        ).join(' ');
-        
-        if (item.translation) {
-            practiceTitle.innerHTML = `
-                ${wordsHtml}
-                <div class="translation-text">${item.translation}</div>
-            `;
-        } else {
-            practiceTitle.innerHTML = wordsHtml;
-        }
-    } else {
-        // 單字或片語
-        practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
-    }
+   // 清理之前的回饋內容
+   const oldFeedback = document.getElementById('detailedFeedback');
+   if (oldFeedback) oldFeedback.remove();
+   
+   const oldHint = document.getElementById('clickHint');
+   if (oldHint) oldHint.remove();
 
-    
-    // 更新副標題（僅課文有多句）
-    if ('sentences' in item && item.sentences.length > 1) {
-        practiceSubtitle.textContent = `句子 ${app.currentPartIndex + 1} / ${item.sentences.length}`;
-        practiceSubtitle.classList.remove('hidden');
-        partNavigation.classList.remove('hidden');
-    } else {
-        practiceSubtitle.classList.add('hidden');
-        partNavigation.classList.add('hidden');
-    }
-    
-    // 更新導航按鈕狀態
-    updateNavigationButtons();
-    
-    // 重置語音相關狀態
-    app.transcript = '';
-    app.comparisonResult = null;
-    app.resetWordColors();
-    app.updateRecordButton();
-    app.resetTranscriptDisplay();
+   const oldPopup = document.getElementById('wordFeedbackPopup');
+   if (oldPopup) oldPopup.remove();
+   
+   const item = app.getCurrentItem();
+   if (!item) return;
+   
+   const practiceTitle = document.getElementById('practiceTitle');
+   const practiceSubtitle = document.getElementById('practiceSubtitle');
+   const practiceText = document.getElementById('practiceText');
+   const favoriteBtn = document.getElementById('favoriteBtn');
+   const partNavigation = document.getElementById('partNavigation');
+   
+   // 更新標題 - 顯示練習內容
+   if ('sentences' in item) {
+       const sentence = item.sentences[app.currentPartIndex];
+       const words = sentence.split(' ');
+       const wordsHtml = words.map((word, index) => 
+           `<span class="word-default" data-word-index="${index}">${word}</span>`
+       ).join(' ');
+       
+       if (item.translation) {
+           practiceTitle.innerHTML = `
+               ${wordsHtml}
+               <div class="translation-text">${item.translation}</div>
+           `;
+       } else {
+           practiceTitle.innerHTML = wordsHtml;
+       }
+   } else {
+       // 單字或片語
+       practiceTitle.innerHTML = `<span class="word-default" data-word-index="0">${item.example}</span>`;
+   }
 
-	// 清理任何現有的提示或回饋
-const oldHint = document.getElementById('clickHint');
-if (oldHint) oldHint.remove();
-
-const oldFeedback = document.getElementById('detailedFeedback');
-if (oldFeedback) oldFeedback.remove();
-
-const oldPopup = document.getElementById('wordFeedbackPopup');
-if (oldPopup) oldPopup.remove();
+   
+   // 更新副標題（僅課文有多句）
+   if ('sentences' in item && item.sentences.length > 1) {
+       practiceSubtitle.textContent = `句子 ${app.currentPartIndex + 1} / ${item.sentences.length}`;
+       practiceSubtitle.classList.remove('hidden');
+       partNavigation.classList.remove('hidden');
+   } else {
+       practiceSubtitle.classList.add('hidden');
+       partNavigation.classList.add('hidden');
+   }
+   
+   // 更新導航按鈕狀態
+   updateNavigationButtons();
+   
+   // 重置語音相關狀態
+   app.transcript = '';
+   app.comparisonResult = null;
+   app.resetWordColors();
+   app.updateRecordButton();
+   app.resetTranscriptDisplay();
 }
 
 // 更新導航按鈕狀態
@@ -1976,6 +1972,7 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
 
 
