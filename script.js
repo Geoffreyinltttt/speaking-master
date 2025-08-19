@@ -552,8 +552,10 @@ class AppState {
     
     if (!this.recognition || this.isListening) return;
     
-    // 確保所有音頻播放都已停止
-    this.ensureAudioStopped();
+    // 確保所有音頻播放都已停止（加上條件檢查）
+    if (document.readyState === 'complete') {
+        this.ensureAudioStopped();
+    }
     
     this.transcript = '';
     this.interimTranscript = '';
@@ -583,9 +585,7 @@ class AppState {
     }, 200);
 }
 
-
-
-	// 確保所有音頻播放停止
+// 確保所有音頻播放停止
 ensureAudioStopped() {
     // 停止所有 HTML audio 元素
     const audioElements = document.querySelectorAll('audio');
@@ -603,19 +603,19 @@ ensureAudioStopped() {
     
     console.log('All audio playback stopped');
 }
-	
-    stopListening() {
-        if (!this.recognition || !this.isListening) return;
-        
-        this.recognition.stop();
-        this.isListening = false;
-        this.updateRecordButton();
-        
-        // 最終更新顏色
-        setTimeout(() => {
-            this.updateWordColors();
-        }, 100);
-    }
+
+stopListening() {
+    if (!this.recognition || !this.isListening) return;
+    
+    this.recognition.stop();
+    this.isListening = false;
+    this.updateRecordButton();
+    
+    // 最終更新顏色
+    setTimeout(() => {
+        this.updateWordColors();
+    }, 100);
+}
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
@@ -1976,5 +1976,6 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
 
