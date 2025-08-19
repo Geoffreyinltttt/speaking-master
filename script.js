@@ -701,21 +701,60 @@ ensureAudioStopped() {
         }
     }
     
-    processTranscript() {
-        const practiceText = this.getCurrentPracticeText();
-        if (!practiceText || !this.transcript) return;
-        
-        this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
-        this.updateTranscriptDisplay();
-		
-        // 不再自動顯示詳細回饋，改為點選單字時顯示
-        // 移除舊的自動回饋顯示邏輯
-        
-        // 如果是挑戰模式，顯示下一題按鈕
-        if (this.currentScreen === 'challengeScreen') {
-            document.getElementById('nextBtn').classList.remove('hidden');
-        }
+processTranscript() {
+    const practiceText = this.getCurrentPracticeText();
+    if (!practiceText || !this.transcript) return;
+    
+    this.comparisonResult = this.compareAndColorize(practiceText, this.transcript);
+    this.updateTranscriptDisplay();
+
+    // 根據內容類型決定是否顯示詳細回饋
+    const item = this.getCurrentItem();
+    if (this.contentType === 'vocabulary' || this.contentType === 'idioms') {
+        // 單字和片語：顯示整體回饋在下方
+        this.showDetailedFeedback(this.comparisonResult.details);
+    } else if ('sentences' in item) {
+        // 句子：不自動顯示回饋，等待使用者點擊單字
+        console.log('句子練習完成，請點擊上方單字查看詳細回饋');
+        // 可以選擇性地顯示一個簡單提示
+        this.showClickHint();
     }
+    
+    // 如果是挑戰模式，顯示下一題按鈕
+    if (this.currentScreen === 'challengeScreen') {
+        document.getElementById('nextBtn').classList.remove('hidden');
+    }
+}
+
+	// 顯示點擊提示（僅句子練習）
+showClickHint() {
+    // 移除舊的提示
+    const oldHint = document.getElementById('clickHint');
+    if (oldHint) oldHint.remove();
+    
+    // 創建新提示
+    const hintDiv = document.createElement('div');
+    hintDiv.id = 'clickHint';
+    hintDiv.className = 'mt-4 p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl text-center';
+    hintDiv.innerHTML = `
+        <p class="text-sky-300 text-sm">
+            💡 點擊上方的單字查看詳細發音回饋
+        </p>
+    `;
+    
+    // 插入到轉錄區域下方
+    const transcriptArea = document.getElementById('transcriptArea');
+    if (transcriptArea && transcriptArea.parentNode) {
+        transcriptArea.parentNode.insertBefore(hintDiv, transcriptArea.nextSibling);
+    }
+    
+    // 3秒後自動消失
+    setTimeout(() => {
+        if (hintDiv.parentNode) {
+            hintDiv.remove();
+        }
+    }, 3000);
+}
     
     showDetailedFeedback(details) {
         // 移除舊的回饋區域
@@ -883,6 +922,85 @@ ensureAudioStopped() {
         };
     }
 
+// 綁定單字點擊事件
+bindWordClickEvents() {
+    document.querySelectorAll('.clickable-word').forEach(wordElement => {
+        wordElement.addEventListener('click', (e) => {
+            const feedbackData = e.target.getAttribute('data-feedback');
+            if (feedbackData) {
+                try {
+                    const feedback = JSON.parse(feedbackData);
+                    this.showIndividualWordFeedback(feedback, e.target);
+                } catch (error) {
+                    console.error('解析回饋資料失敗:', error);
+                }
+            }
+        });
+    });
+}
+
+	// 顯示個別單字回饋
+showIndividualWordFeedback(feedback, targetElement) {
+    // 移除現有的彈出回饋
+    const existingPopup = document.getElementById('wordFeedbackPopup');
+    if (existingPopup) existingPopup.remove();
+    
+    // 創建回饋彈出框
+    const popup = document.createElement('div');
+    popup.id = 'wordFeedbackPopup';
+    popup.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    
+    let iconColor, icon;
+    switch (feedback.type) {
+        case 'correct':
+            iconColor = 'text-green-400';
+            icon = '✅';
+            break;
+        case 'close':
+            iconColor = 'text-yellow-400';
+            icon = '🟡';
+            break;
+        case 'incorrect':
+            iconColor = 'text-red-400';
+            icon = '❌';
+            break;
+        case 'extra':
+            iconColor = 'text-blue-400';
+            icon = '➕';
+            break;
+        case 'missing':
+            iconColor = 'text-orange-400';
+            icon = '➖';
+            break;
+        default:
+            iconColor = 'text-slate-400';
+            icon = '•';
+    }
+    
+    popup.innerHTML = `
+        <div class="glass-primary rounded-2xl p-6 max-w-sm mx-4 text-center">
+            <div class="${iconColor} text-4xl mb-3">${icon}</div>
+            <h3 class="text-lg font-semibold text-white mb-3">發音回饋</h3>
+            <p class="text-slate-300 mb-4">${feedback.message}</p>
+            ${feedback.suggestion ? `<p class="text-yellow-300 text-sm mb-4">💡 ${feedback.suggestion}</p>` : ''}
+            ${feedback.similarity ? `<p class="text-slate-400 text-xs mb-4">相似度: ${Math.round(feedback.similarity * 100)}%</p>` : ''}
+            <button onclick="document.getElementById('wordFeedbackPopup').remove()" 
+                    class="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-colors">
+                知道了
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // 點擊背景關閉
+    popup.addEventListener('click', (e) => {
+        if (e.target === popup) {
+            popup.remove();
+        }
+    });
+}
+	
     // 改進的詞語對齊算法 - 更寬容的匹配
     alignWordsImproved(original, spoken) {
         const result = [];
@@ -1482,6 +1600,16 @@ function updatePracticeScreen() {
     app.resetWordColors();
     app.updateRecordButton();
     app.resetTranscriptDisplay();
+
+	// 清理任何現有的提示或回饋
+const oldHint = document.getElementById('clickHint');
+if (oldHint) oldHint.remove();
+
+const oldFeedback = document.getElementById('detailedFeedback');
+if (oldFeedback) oldFeedback.remove();
+
+const oldPopup = document.getElementById('wordFeedbackPopup');
+if (oldPopup) oldPopup.remove();
 }
 
 // 更新導航按鈕狀態
@@ -1848,4 +1976,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
