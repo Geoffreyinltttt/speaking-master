@@ -562,22 +562,29 @@ class AppState {
         this.comparisonResult = null;
         this.resetWordColors();
         
+        // 立即更新按鈕和顯示狀態
+        this.isListening = true;
+        this.updateRecordButton();
+        this.updateTranscriptDisplay();
+        
         // 增加延遲確保音頻設備完全釋放
         setTimeout(() => {
             try {
                 this.recognition.start();
-                this.isListening = true;
-                this.updateRecordButton();
             } catch (e) {
                 console.error('語音辨識無法啟動:', e);
-                // 如果失敗，再試一次
+                // 如果失敗，重置狀態並再試一次
+                this.isListening = false;
+                this.updateRecordButton();
                 setTimeout(() => {
                     try {
-                        this.recognition.start();
                         this.isListening = true;
                         this.updateRecordButton();
+                        this.recognition.start();
                     } catch (e2) {
                         console.error('語音辨識第二次嘗試也失敗:', e2);
+                        this.isListening = false;
+                        this.updateRecordButton();
                         alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
                     }
                 }, 1000);
@@ -633,6 +640,8 @@ class AppState {
                 <span>停止錄音</span>
             `;
             recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
+            recordBtn.style.backgroundColor = '#ef4444';
+            recordBtn.style.setProperty('background-color', '#ef4444', 'important');
         } else {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -641,6 +650,9 @@ class AppState {
                 <span>開始錄音</span>
             `;
             recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
+            recordBtn.style.backgroundColor = '';
+            recordBtn.style.background = 'linear-gradient(to right, #10b981, #059669)';
+            recordBtn.style.setProperty('background', 'linear-gradient(to right, #10b981, #059669)', 'important');
         }
     }
     
@@ -661,8 +673,8 @@ class AppState {
         if (this.comparisonResult) {
             // 根據內容類型決定顯示方式
             const item = this.getCurrentItem();
-            if ('sentences' in item) {
-                // 句子練習：只顯示準確度
+            if ('sentences' in item || this.currentScreen === 'challengeScreen') {
+                // 句子練習或挑戰模式：只顯示準確度
                 transcriptArea.innerHTML = `
                     <div class="text-center">
                         <p class="text-sm text-slate-300 mb-2">識別結果：</p>
@@ -681,6 +693,42 @@ class AppState {
                 `;
             }
         } else if (this.isListening) {
+            // 錄音中的即時顯示
+            let displayContent = '';
+            
+            // 顯示已確定的文字（白色）
+            if (this.transcript) {
+                displayContent += `<span class="text-white font-medium">${this.transcript}</span>`;
+            }
+            
+            // 顯示正在識別的文字（淺藍色，表示暫時的）
+            if (this.interimTranscript) {
+                displayContent += `<span class="text-blue-300 italic ml-1">${this.interimTranscript}</span>`;
+            }
+            
+            // 如果都沒有文字，顯示聆聽狀態
+            if (!this.transcript && !this.interimTranscript) {
+                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽，請開始說話</span>';
+            }
+            
+            // 加入閃爍的錄音指示器
+            displayContent += '<span class="ml-2 inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>';
+            
+            transcriptArea.innerHTML = `<div class="text-center">${displayContent}</div>`;
+        } else if (this.transcript) {
+            // 錄音結束後顯示最終結果
+            transcriptArea.innerHTML = `
+                <div class="text-center">
+                    <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
+                    <p class="text-white font-medium text-lg">${this.transcript}</p>
+                    <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
+                </div>
+            `;
+        } else {
+            // 初始狀態
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
+        }
+    }
             // 錄音中的即時顯示
             let displayContent = '';
             
