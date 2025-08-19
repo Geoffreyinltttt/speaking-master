@@ -29,30 +29,111 @@ function checkBrowserCompatibility() {
     `;
     showDebugInfo(debugInfo);
     
-    console.log('瀏覽器檢測結果:', {
-        userAgent: userAgent,
-        isFirefox: isFirefox,
-        isChrome: isChrome,
-        isEdge: isEdge,
-        isSafari: isSafari,
-        hasSpeechRecognition: hasSpeechRecognition
-    });
-    
-    // Firefox 通常不支援 Web Speech API，或支援度很低
-    if (isFirefox || !hasSpeechRecognition) {
-        console.log('檢測到不相容的瀏覽器，顯示警告');
-        showDebugInfo('檢測到不相容瀏覽器，準備顯示警告...');
+    // 進一步測試語音識別功能是否真的可用
+    if (hasSpeechRecognition) {
+        try {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const testRecognition = new SpeechRecognition();
+            
+            // 如果能成功創建，但是 Firefox 用戶，顯示警告
+            if (isFirefox) {
+                showDebugInfo('Firefox 檢測到語音 API，但可能功能有限...');
+                setTimeout(() => {
+                    showFirefoxWarning();
+                    hideDebugInfo();
+                }, 2000);
+                return true; // 讓 Firefox 繼續，但顯示警告
+            }
+            
+            console.log('語音識別測試成功');
+            showDebugInfo('瀏覽器相容性檢查通過！');
+            setTimeout(hideDebugInfo, 2000);
+            return true;
+            
+        } catch (error) {
+            console.log('語音識別創建失敗:', error);
+            showDebugInfo('語音識別創建失敗，顯示警告...');
+            setTimeout(() => {
+                showBrowserCompatibilityWarning();
+                hideDebugInfo();
+            }, 2000);
+            return false;
+        }
+    } else {
+        console.log('檢測到不支援語音識別的瀏覽器');
+        showDebugInfo('不支援語音識別，顯示警告...');
         setTimeout(() => {
             showBrowserCompatibilityWarning();
             hideDebugInfo();
         }, 2000);
         return false;
     }
+}
+
+// Firefox 專用警告（功能可能有限）
+function showFirefoxWarning() {
+    console.log('顯示 Firefox 專用警告...');
     
-    console.log('瀏覽器相容性檢查通過');
-    showDebugInfo('瀏覽器相容性檢查通過！');
-    setTimeout(hideDebugInfo, 2000);
-    return true;
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'firefoxWarning';
+    warningDiv.className = 'fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    warningDiv.style.zIndex = '9999';
+    
+    warningDiv.innerHTML = `
+        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="text-orange-400 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">Firefox 語音功能提醒</h3>
+            <p class="text-slate-300 mb-6 leading-relaxed">
+                Firefox 的語音識別功能可能不穩定或功能有限。<br>
+                如果遇到語音識別問題，建議使用：
+            </p>
+            
+            <div class="text-left mb-6 space-y-2">
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Google Chrome（最佳體驗）</span>
+                </div>
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Microsoft Edge</span>
+                </div>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="continueWithFirefox()" class="w-full px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-all duration-300">
+                    繼續使用 Firefox
+                </button>
+                <button onclick="dismissFirefoxWarning()" class="w-full px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-xl transition-all duration-300">
+                    我知道了
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-400 mt-4">
+                💡 如果語音識別無反應，請嘗試重新整理頁面或換瀏覽器
+            </p>
+        </div>
+    `;
+    
+    document.body.appendChild(warningDiv);
+    console.log('Firefox 警告已顯示');
+}
+
+function continueWithFirefox() {
+    const warning = document.getElementById('firefoxWarning');
+    if (warning) warning.remove();
+}
+
+function dismissFirefoxWarning() {
+    const warning = document.getElementById('firefoxWarning');
+    if (warning) warning.remove();
 }
 
 // 顯示調試資訊（手機可見）
@@ -1699,3 +1780,5 @@ window.nextChallenge = nextChallenge;
 window.loadDataFromFile = loadDataFromFile;
 window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
+window.continueWithFirefox = continueWithFirefox;
+window.dismissFirefoxWarning = dismissFirefoxWarning;
