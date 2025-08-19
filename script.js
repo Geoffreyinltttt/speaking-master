@@ -622,7 +622,7 @@ class AppState {
                 <div class="text-center">
                     <p class="text-sm text-slate-300 mb-2">識別結果：</p>
                     <div class="text-lg">${this.comparisonResult.html}</div>
-                    <p class="text-xs text-slate-400 mt-2">準確度: ${this.comparisonResult.score}%</p>
+                    <p class="text-xs text-slate-400 mt-2">準確度: ${this.comparisonResult.score}% · 點擊單字查看詳細回饋</p>
                 </div>
             `;
         } else if (this.isListening) {
@@ -641,7 +641,7 @@ class AppState {
             
             // 如果都沒有文字，顯示聆聽狀態
             if (!this.transcript && !this.interimTranscript) {
-                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽... 請開始說話</span>';
+                displayContent = '<span class="text-yellow-400 italic">🎙️ 正在聆聽，請開始說話</span>';
             }
             
             // 加入閃爍的錄音指示器
@@ -652,13 +652,14 @@ class AppState {
             // 錄音結束後顯示最終結果
             transcriptArea.innerHTML = `
                 <div class="text-center">
-                    <p class="text-sm text-slate-300 mb-2">您說的是：</p>
+                    <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
                     <p class="text-white font-medium text-lg">${this.transcript}</p>
+                    <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
                 </div>
             `;
         } else {
             // 初始狀態
-            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>';
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
         }
     }
     
@@ -1171,7 +1172,7 @@ class AppState {
     resetTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
         if (transcriptArea) {
-            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>';
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
         }
     }
 
@@ -1570,7 +1571,7 @@ function updateChallengeScreen() {
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
                         </svg>
-                        開始錄音
+                        錄音
                     </button>
                 </div>
                 
