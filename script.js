@@ -364,6 +364,7 @@ function processWordsSheet(data) {
             words.push({
                 id: `w${i}`,
                 word: row[1], // B欄: word
+                meaning: row[2] || '', // C欄: meaning (詞性和中文意思)
                 example: row[1] || '', // B欄: word (用於練習文字)
                 audio: audioFile // D欄: audio (加上路徑前綴)
             });
@@ -1571,26 +1572,44 @@ function renderList() {
         allItems = passages;
     }
     
-    // 渲染 iOS 風格列表
-    allItemsList.innerHTML = allItems.map((item, index) => {
-        const displayText = 'word' in item ? item.word : item.title;
-        const isLast = index === allItems.length - 1;
-        
+// 渲染 iOS 風格列表
+allItemsList.innerHTML = allItems.map((item, index) => {
+    const isLast = index === allItems.length - 1;
+    
+    if ('word' in item) {
+        // 單字項目 - 顯示單字和意思
         return `
-    <button onclick="startPractice(${index}, 'list')" 
-            class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-        <div style="flex: 1; min-width: 0;">
-            <p class="text-white text-body text-lg truncate">${displayText}</p>
-        </div>
-        <div style="flex-shrink: 0; margin-left: 16px;">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-        </div>
-    </button>
-    `;
-
-    }).join('');
+<button onclick="startPractice(${index}, 'list')" 
+        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <div style="flex: 1; min-width: 0;">
+        <p class="text-white text-body text-lg truncate font-semibold">${item.word}</p>
+        ${item.meaning ? `<p class="text-slate-400 text-sm truncate mt-1">${item.meaning}</p>` : ''}
+    </div>
+    <div style="flex-shrink: 0; margin-left: 16px;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+    </div>
+</button>
+`;
+    } else {
+        // 課文項目 - 保持原有格式
+        const displayText = item.title;
+        return `
+<button onclick="startPractice(${index}, 'list')" 
+        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <div style="flex: 1; min-width: 0;">
+        <p class="text-white text-body text-lg truncate">${displayText}</p>
+    </div>
+    <div style="flex-shrink: 0; margin-left: 16px;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+    </div>
+</button>
+`;
+    }
+}).join('');
 }
 
 // 開始練習
@@ -1647,9 +1666,13 @@ function updatePracticeScreen() {
             practiceTitle.innerHTML = wordsHtml;
         }
     } else {
-        // 單字或片語
-        practiceTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>`;
-    }
+    // 單字或片語
+    const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
+    practiceTitle.innerHTML = `
+        <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>
+        ${meaningDisplay}
+    `;
+}
 
     
     // 更新副標題（僅課文有多句）
@@ -1925,4 +1948,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
