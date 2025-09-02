@@ -1543,7 +1543,6 @@ function showScreen(screenId) {
     app.currentScreen = screenId;
 }
 
-// 語音合成功能 - 支持音檔和 TTS
 function speakText(text, audioFile = null) {
     console.log('speakText called with:', { text, audioFile });
     
@@ -1553,24 +1552,44 @@ function speakText(text, audioFile = null) {
         console.log('Stopped recording before playing audio');
     }
     
+    // 確保所有音頻都停止
+    app.ensureAudioStopped();
+    
     // 如果有音檔，優先播放音檔
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
+        // 設定音頻屬性以更好地釋放資源
+        audio.preload = 'none';
+        
         // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
-            console.log('Audio playback ended, enabling recording after delay');
+            console.log('Audio playback ended, releasing resources');
+            // 主動釋放音頻資源
+            audio.src = '';
+            audio.load();
             // 增加延遲確保音頻設備完全釋放
             setTimeout(() => {
                 console.log('Audio device should be ready for recording now');
-            }, 500);
+            }, 800);
         };
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
             console.log('Falling back to TTS');
+            // 釋放失敗的音頻資源
+            audio.src = '';
+            audio.load();
             speakWithTTS(text);
+        };
+        
+        // 添加額外的事件監聽器確保資源釋放
+        audio.onpause = function() {
+            setTimeout(() => {
+                audio.src = '';
+                audio.load();
+            }, 100);
         };
         
         audio.play().then(() => {
@@ -1578,6 +1597,9 @@ function speakText(text, audioFile = null) {
         }).catch(error => {
             console.warn(`音檔播放失敗: ${audioFile}`, error);
             console.log('Falling back to TTS');
+            // 釋放失敗的音頻資源
+            audio.src = '';
+            audio.load();
             speakWithTTS(text);
         });
     } else {
@@ -2205,5 +2227,6 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
 
