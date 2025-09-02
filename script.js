@@ -589,24 +589,26 @@ class AppState {
         }, 200);
     }
 
-    // 確保所有音頻播放停止
-    ensureAudioStopped() {
-        // 停止所有 HTML audio 元素
-        const audioElements = document.querySelectorAll('audio');
-        audioElements.forEach(audio => {
-            if (!audio.paused) {
-                audio.pause();
-                audio.currentTime = 0;
-            }
-        });
-        
-        // 停止語音合成
-        if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
+// 確保所有音頻播放停止
+ensureAudioStopped() {
+    // 停止所有 HTML audio 元素
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+        if (!audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
         }
-        
-        console.log('All audio playback stopped');
+        // 強制釋放音頻資源
+        audio.load();
+    });
+    
+    // 停止語音合成
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
     }
+    
+    console.log('All audio playback stopped and resources released');
+}
     
     stopListening() {
         if (!this.recognition || !this.isListening) return;
@@ -2049,19 +2051,15 @@ function toggleChallengeRecording() {
     if (app.isListening) {
         app.stopListening();
     } else {
-        // 檢查是否有音頻正在播放
-        const hasActiveAudio = document.querySelector('audio:not([paused])') || 
-                             ('speechSynthesis' in window && window.speechSynthesis.speaking);
+        // 確保所有音頻都已停止
+        app.ensureAudioStopped();
         
-        if (hasActiveAudio) {
-            // 如果有音頻在播放，先停止然後延遲開始錄音
-            app.ensureAudioStopped();
-            setTimeout(() => {
+        // 增加更長的延遲等待音頻設備完全釋放
+        setTimeout(() => {
+            if (!app.isListening) { // 確保在延遲期間用戶沒有再次點擊
                 app.startListening();
-            }, 500);
-        } else {
-            app.startListening();
-        }
+            }
+        }, 800); // 增加到 800ms
     }
 }
 
@@ -2207,4 +2205,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
