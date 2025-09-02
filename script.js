@@ -435,6 +435,9 @@ class AppState {
         this.transcript = '';
         this.interimTranscript = '';
         this.comparisonResult = null;
+        this.isAudioPlaying = false;
+        this.currentAudio = null;
+        
         
         this.initSpeechRecognition();
     }
@@ -631,14 +634,23 @@ class AppState {
     }
     
     updateRecordButton() {
-        const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) return;
-        
-        // 強制移除所有現有的樣式類別
-        recordBtn.removeAttribute('class');
-        recordBtn.removeAttribute('style');
-        
-        if (this.isListening) {
+    const recordBtn = document.getElementById('recordBtn');
+    if (!recordBtn) return;
+    
+    // 強制移除所有現有的樣式類別
+    recordBtn.removeAttribute('class');
+    recordBtn.removeAttribute('style');
+    
+    if (this.isAudioPlaying) {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.816L4.486 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.486l3.897-3.816a1 1 0 011.617.816zM16.293 6.293a1 1 0 011.414 0L19 7.586l1.293-1.293a1 1 0 111.414 1.414L20.414 9l1.293 1.293a1 1 0 01-1.414 1.414L19 10.414l-1.293 1.293a1 1 0 01-1.414-1.414L17.586 9l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            <span>播放中...</span>
+        `;
+        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-amber-500/70 text-white font-medium rounded-2xl shadow-xl cursor-not-allowed opacity-70');
+        recordBtn.disabled = true;
+    } else if (this.isListening) {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
@@ -657,15 +669,24 @@ class AppState {
         }
     }
     
-    updateChallengeRecordButton() {
-        const recordBtn = document.getElementById('challengeRecordBtn');
-        if (!recordBtn) return;
-        
-        // 強制移除所有現有的樣式類別
-        recordBtn.removeAttribute('class');
-        recordBtn.removeAttribute('style');
-        
-        if (this.isListening) {
+updateChallengeRecordButton() {
+    const recordBtn = document.getElementById('challengeRecordBtn');
+    if (!recordBtn) return;
+    
+    // 強制移除所有現有的樣式類別
+    recordBtn.removeAttribute('class');
+    recordBtn.removeAttribute('style');
+    
+    if (this.isAudioPlaying) {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.816L4.486 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.486l3.897-3.816a1 1 0 011.617.816zM16.293 6.293a1 1 0 011.414 0L19 7.586l1.293-1.293a1 1 0 111.414 1.414L20.414 9l1.293 1.293a1 1 0 01-1.414 1.414L19 10.414l-1.293 1.293a1 1 0 01-1.414-1.414L17.586 9l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            <span>播放中...</span>
+        `;
+        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-amber-500/70 text-white font-medium rounded-2xl shadow-xl cursor-not-allowed opacity-70');
+        recordBtn.disabled = true;
+    } else if (this.isListening) {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
@@ -1468,6 +1489,19 @@ class AppState {
         });
     }
 
+    // 鎖定錄音功能
+lockRecording() {
+    this.isAudioPlaying = true;
+    this.updateRecordButtonByScreen();
+}
+
+// 解鎖錄音功能
+unlockRecording() {
+    this.isAudioPlaying = false;
+    this.currentAudio = null;
+    this.updateRecordButtonByScreen();
+}
+
     // 重置轉錄顯示區域
     resetTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
@@ -1555,23 +1589,27 @@ function speakText(text, audioFile = null) {
         console.log('Stopped recording before playing audio');
     }
     
+    // 鎖定錄音功能
+    app.lockRecording();
+    
     // 如果有音檔，優先播放音檔
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
+        app.currentAudio = audio;
         
-        // 確保音頻完全停止後才允許錄音
+// 音檔播放結束時解鎖錄音
         audio.onended = function() {
-            console.log('Audio playback ended, enabling recording after delay');
-            // 增加延遲確保音頻設備完全釋放
+            console.log('Audio playback ended, unlocking recording');
             setTimeout(() => {
-                console.log('Audio device should be ready for recording now');
-            }, 500);
+                app.unlockRecording();
+            }, 300);
         };
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
             console.log('Falling back to TTS');
+            app.unlockRecording(); // 載入失敗時也要解鎖
             speakWithTTS(text);
         };
         
@@ -1598,11 +1636,11 @@ function speakWithTTS(text) {
         utterance.lang = 'en-US';
         utterance.rate = 0.9;
         
-        // TTS 結束後確保設備釋放
+// TTS 結束後解鎖錄音
         utterance.onend = function() {
-            console.log('TTS ended, audio device released');
+            console.log('TTS ended, unlocking recording');
             setTimeout(() => {
-                console.log('Ready for recording after TTS');
+                app.unlockRecording();
             }, 300);
         };
         
@@ -1908,6 +1946,10 @@ function startChallenge(challengeType = 'mixed') {
 
 // 錄音控制
 function toggleRecording() {
+    if (app.isAudioPlaying) {
+        return; // 音頻播放中，不允許錄音
+    }
+    
     if (app.isListening) {
         app.stopListening();
     } else {
@@ -2050,6 +2092,10 @@ function showChallengeResult() {
 
 // 挑戰模式錄音控制
 function toggleChallengeRecording() {
+    if (app.isAudioPlaying) {
+        return; // 音頻播放中，不允許錄音
+    }
+    
     if (app.isListening) {
         app.stopListening();
     } else {
@@ -2211,4 +2257,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
