@@ -598,87 +598,44 @@ initSpeechRecognition() {
 }
 
     
-    startListening() {
-    // 新增：先移除所有音頻元素
-    document.querySelectorAll('audio').forEach(a => a.remove());
-    
-    // 新增：如果沒有識別器，創建一個
+startListening() {
+    // 如果沒有識別器，創建新的
     if (!this.recognition) {
         this.initSpeechRecognition();
+        // 等待初始化完成
+        setTimeout(() => {
+            this.startListening();
+        }, 500);
+        return;
     }
-
-
-        // 檢查是否被禁用
-        if (window.speechDisabled) {
-            alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
-            return;
-        }
-        
-        if (!this.recognition || this.isListening) return;
-        
-        // 確保所有音頻播放都已停止（加上條件檢查）
-        if (document.readyState === 'complete') {
-            this.ensureAudioStopped();
-        }
-        
-        this.transcript = '';
-        this.interimTranscript = '';
-        this.comparisonResult = null;
-        this.resetWordColors();
-        
-// 確保音頻完全停止
-this.ensureAudioStopped();
-
-// 如果語音識別器不存在或狀態異常，重新初始化
-if (!this.recognition) {
-    this.initSpeechRecognition();
-}
-
-// 延遲啟動，確保設備準備就緒
-setTimeout(() => {
-    try {	
+    
+    if (this.isListening) return;
+    
+    // 清空舊資料
+    this.transcript = '';
+    this.interimTranscript = '';
+    
+    // 直接嘗試啟動
+    try {
         this.recognition.start();
         this.isListening = true;
         this.updateRecordButton();
-        console.log('語音識別成功啟動');
     } catch (e) {
-        console.error('語音辨識無法啟動:', e);
-        
-        // 如果是因為識別器已經在運行，先停止再重啟
-        if (e.message && e.message.includes('already started')) {
+        // 如果失敗，重新初始化後再試
+        this.recognition = null;
+        this.initSpeechRecognition();
+        setTimeout(() => {
             try {
-                this.recognition.stop();
-                setTimeout(() => {
-                    this.recognition.start();
-                    this.isListening = true;
-                    this.updateRecordButton();
-                }, 100);
+                this.recognition.start();
+                this.isListening = true;
+                this.updateRecordButton();
             } catch (e2) {
-                console.error('重啟語音識別失敗:', e2);
-                // 完全重新初始化
-                this.initSpeechRecognition();
-                setTimeout(() => {
-                    this.recognition.start();
-                    this.isListening = true;
-                    this.updateRecordButton();
-                }, 500);
+                alert('無法啟動語音識別，請重新整理頁面');
             }
-        } else {
-            // 其他錯誤，重新初始化
-            this.initSpeechRecognition();
-            setTimeout(() => {
-                try {
-                    this.recognition.start();
-                    this.isListening = true;
-                    this.updateRecordButton();
-                } catch (e3) {
-                    alert('語音識別啟動失敗，請重新整理頁面再試。');
-                }
-            }, 500);
-        }
+        }, 500);
     }
-}, 300);
-    }
+}
+
 
 // 確保所有音頻播放停止
 ensureAudioStopped() {
@@ -1568,34 +1525,37 @@ function showScreen(screenId) {
 }
 
 function speakText(text, audioFile = null) {
-    // 停止錄音
-    if (app.isListening) {
-        app.stopListening();
+    // 先停止並重置所有語音識別
+    if (app.recognition) {
+        try {
+            app.recognition.stop();
+            app.recognition.abort();
+        } catch(e) {}
+        app.recognition = null;
+        app.isListening = false;
     }
-    
-    // 停止並移除所有舊的音頻
-    document.querySelectorAll('audio').forEach(a => a.remove());
     
     if (audioFile && audioFile.trim()) {
-        // 創建新的音頻元素
-        const audio = document.createElement('audio');
-        audio.src = audioFile;
+        const audio = new Audio(audioFile);
         audio.volume = 0.5;
-        document.body.appendChild(audio);
         
-        // 播放結束後移除
+        // 播放結束後，等待一秒再重新初始化語音識別
         audio.onended = () => {
-            audio.remove();
+            setTimeout(() => {
+                app.initSpeechRecognition();
+            }, 1000);
         };
         
-        // 播放
         audio.play().catch(() => {
             alert('音檔無法播放');
+            // 如果播放失敗也要重新初始化
+            setTimeout(() => {
+                app.initSpeechRecognition();
+            }, 1000);
         });
-    } else {
-        alert('沒有音檔');
     }
 }
+
 
 // 列表渲染功能
 function renderList() {
