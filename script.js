@@ -1498,10 +1498,9 @@ function speakText(text, audioFile = null) {
             }, 500);
         };
         
-        audio.onerror = function(e) {
-            console.warn(`音檔載入失敗: ${audioFile}`, e);
-            console.log('Falling back to TTS');
-            speakWithTTS(text);
+audio.onerror = function(e) {
+            console.warn(`❌ 音檔載入失敗: ${audioFile}`, e);
+            alert('音檔無法播放，請檢查檔案路徑');
         };
         
         audio.play().then(() => {
