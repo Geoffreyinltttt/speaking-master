@@ -4,68 +4,6 @@ let idioms = [];
 let passages = [];
 let dataLoaded = false;
 
-// 全域音頻管理器
-const AudioManager = {
-    currentAudio: null,
-    
-    play(audioFile, volume = 0.3) {
-        // 先停止並清理任何現有音頻
-        this.stop();
-        
-        if (!audioFile || !audioFile.trim()) {
-            window.isPlayingAudio = false;
-            return Promise.reject('No audio file');
-        }
-        
-        // 創建新音頻
-        this.currentAudio = new Audio(audioFile);
-        this.currentAudio.volume = volume;
-        
-        // 標記播放狀態
-        window.isPlayingAudio = true;
-        
-        // 設定事件處理
-        this.currentAudio.onended = () => {
-            this.cleanup();
-        };
-        
-        this.currentAudio.onerror = () => {
-            console.error('音頻播放錯誤');
-            this.cleanup();
-        };
-        
-        // 播放
-        return this.currentAudio.play().catch(err => {
-            this.cleanup();
-            throw err;
-        });
-    },
-    
-    stop() {
-        if (this.currentAudio) {
-            this.currentAudio.pause();
-            this.currentAudio.currentTime = 0;
-            this.currentAudio.src = '';
-            this.currentAudio = null;
-        }
-        
-        // 清理所有遺留的音頻元素
-        document.querySelectorAll('audio').forEach(audio => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.remove();
-        });
-    },
-    
-    cleanup() {
-        this.stop();
-        window.isPlayingAudio = false;
-        if (app && app.updateRecordButton) {
-            app.updateRecordButton();
-        }
-    }
-};
-
 // 瀏覽器相容性檢測
 function checkBrowserCompatibility() {
     console.log('開始檢查瀏覽器相容性...');
@@ -661,9 +599,6 @@ initSpeechRecognition() {
 
     
 startListening() {
-    // 確保音頻完全停止
-    AudioManager.stop();
-    
     // 如果正在播放音頻，等待
     if (window.isPlayingAudio) {
         alert('請等待音檔播放完畢');
@@ -673,40 +608,39 @@ startListening() {
     // 如果已在監聽，直接返回
     if (this.isListening) return;
     
-    // 清理並重建識別器
-    if (this.recognition) {
+    // 重置識別器的技巧：先創建新的，再銷毀舊的
+    const oldRecognition = this.recognition;
+    
+    // 創建新的識別器
+    this.initSpeechRecognition();
+    
+    // 銷毀舊的（如果存在）
+    if (oldRecognition) {
         try {
-            this.recognition.abort();
+            oldRecognition.stop();
+            oldRecognition.abort();
         } catch(e) {}
-        this.recognition = null;
     }
     
-    // 延遲一下讓系統清理資源
+    // 清空轉錄文字
+    this.transcript = '';
+    this.interimTranscript = '';
+    this.updateTranscriptDisplay();
+    
+    // 給一點延遲讓系統準備
     setTimeout(() => {
-        // 創建新的識別器
-        this.initSpeechRecognition();
-        
-        // 清空轉錄文字
-        this.transcript = '';
-        this.interimTranscript = '';
-        this.updateTranscriptDisplay();
-        
-        // 再延遲啟動
-        setTimeout(() => {
-            try {
-                this.recognition.start();
-                this.isListening = true;
-                this.updateRecordButton();
-            } catch (e) {
-                console.error('啟動語音識別失敗:', e);
-                alert('語音識別啟動失敗，請再試一次');
-                this.isListening = false;
-                this.updateRecordButton();
-            }
-        }, 200);
-    }, 300);
+        try {
+            this.recognition.start();
+            this.isListening = true;
+            this.updateRecordButton();
+        } catch (e) {
+            console.error('啟動語音識別失敗:', e);
+            alert('語音識別啟動失敗，請再試一次');
+            this.isListening = false;
+            this.updateRecordButton();
+        }
+    }, 100);
 }
-
 
 // 確保所有音頻播放停止
 ensureAudioStopped() {
@@ -1592,15 +1526,38 @@ function showScreen(screenId) {
 }
 
 function speakText(text, audioFile = null) {
-    // 停止語音識別
+    // 標記正在播放音頻
+    window.isPlayingAudio = true;
+    
+    // 停止但不銷毀語音識別
     if (app.isListening) {
         app.stopListening();
     }
     
-    // 使用音頻管理器播放
-    AudioManager.play(audioFile, 0.3).catch(() => {
-        alert('音檔無法播放');
-    });
+    if (audioFile && audioFile.trim()) {
+        const audio = new Audio(audioFile);
+        audio.volume = 0.5;
+        
+        // 播放結束後標記
+        audio.onended = () => {
+            window.isPlayingAudio = false;
+            // 更新按鈕狀態
+            app.updateRecordButton();
+        };
+        
+        // 播放出錯也要重置標記
+        audio.onerror = () => {
+            window.isPlayingAudio = false;
+            app.updateRecordButton();
+        };
+        
+        audio.play().catch(() => {
+            window.isPlayingAudio = false;
+            alert('音檔無法播放');
+        });
+    } else {
+        window.isPlayingAudio = false;
+    }
 }
 
 // 列表渲染功能
@@ -1697,8 +1654,16 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
-    // 使用音頻管理器停止所有音頻
-    AudioManager.stop();
+    // 停止所有音頻播放並重置狀態
+    window.isPlayingAudio = false;
+    
+    // 停止所有音頻元素
+    const allAudios = document.querySelectorAll('audio');
+    allAudios.forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.remove(); // 完全移除音頻元素
+    });
     
     // 如果正在錄音，先停止
     if (app.isListening) {
