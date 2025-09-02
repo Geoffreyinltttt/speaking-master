@@ -267,12 +267,12 @@ function disableRecordingFeatures() {
     // 隱藏或禁用錄音按鈕的通用函數
     const style = document.createElement('style');
     style.textContent = `
-        #recordBtn {
+        #recordBtn, #challengeRecordBtn {
             opacity: 0.5;
             cursor: not-allowed;
             pointer-events: none;
         }
-        #recordBtn::after {
+        #recordBtn::after, #challengeRecordBtn::after {
             content: '（不支援語音輸入）';
             position: absolute;
             bottom: -20px;
@@ -282,7 +282,7 @@ function disableRecordingFeatures() {
             color: #ef4444;
             white-space: nowrap;
         }
-        #transcriptArea {
+        #transcriptArea, #challengeTranscriptArea {
             opacity: 0.5;
         }
     `;
@@ -383,7 +383,7 @@ function processIdiomsSheet(data) {
             idiomsList.push({
                 id: `i${i}`,
                 word: row[1], // B欄: word
-                meaning: row[2] || '', // C欄: meaning (中文意思) ← 新增這行
+                meaning: row[2] || '', // C欄: meaning (中文意思)
                 example: row[1] || '', // B欄: word (用於練習文字)
                 audio: row[3] ? `audio/${row[3]}` : '' // D欄: audio (加上路徑前綴)
             });
@@ -391,7 +391,6 @@ function processIdiomsSheet(data) {
     }
     return idiomsList;
 }
-
 
 function processTextSheet(data) {
     const sentences = [];
@@ -439,7 +438,7 @@ class AppState {
         
         this.initSpeechRecognition();
     }
-        
+    
     initSpeechRecognition() {
         // 檢查瀏覽器相容性
         if (!checkBrowserCompatibility()) {
@@ -464,6 +463,7 @@ class AppState {
 
         this.recognition.onstart = () => {
             console.log('語音識別已啟動');
+            this.updateRecordButtonByScreen();
             this.updateTranscriptDisplay(); // 立即更新顯示
         };
 
@@ -517,7 +517,6 @@ class AppState {
         this.recognition.onaudioend = () => {
             console.log('音頻捕獲結束');
         };
-
         
         this.recognition.onerror = (event) => {
             let errorMsg = '';
@@ -541,7 +540,7 @@ class AppState {
         this.recognition.onend = () => {
             this.isListening = false;
             this.interimTranscript = '';
-            this.updateRecordButton();
+            this.updateRecordButtonByScreen();
             if (this.transcript) {
                 this.processTranscript();
             }
@@ -572,7 +571,7 @@ class AppState {
             try {
                 this.recognition.start();
                 this.isListening = true;
-                this.updateRecordButton();
+                this.updateRecordButtonByScreen();
             } catch (e) {
                 console.error('語音辨識無法啟動:', e);
                 // 如果失敗，再試一次
@@ -580,7 +579,7 @@ class AppState {
                     try {
                         this.recognition.start();
                         this.isListening = true;
-                        this.updateRecordButton();
+                        this.updateRecordButtonByScreen();
                     } catch (e2) {
                         console.error('語音辨識第二次嘗試也失敗:', e2);
                         alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
@@ -608,18 +607,27 @@ class AppState {
         
         console.log('All audio playback stopped');
     }
-        
+    
     stopListening() {
         if (!this.recognition || !this.isListening) return;
         
         this.recognition.stop();
         this.isListening = false;
-        this.updateRecordButton();
+        this.updateRecordButtonByScreen();
         
         // 最終更新顏色
         setTimeout(() => {
             this.updateWordColors();
         }, 100);
+    }
+    
+    // 根據當前螢幕自動選擇要更新的錄音按鈕
+    updateRecordButtonByScreen() {
+        if (this.currentScreen === 'challengeScreen') {
+            this.updateChallengeRecordButton();
+        } else {
+            this.updateRecordButton();
+        }
     }
     
     updateRecordButton() {
@@ -649,55 +657,55 @@ class AppState {
         }
     }
     
-
-updateChallengeRecordButton() {
-    const recordBtn = document.getElementById('challengeRecordBtn');
-    if (!recordBtn) return;
-    
-    // 強制移除所有現有的樣式類別
-    recordBtn.removeAttribute('class');
-    recordBtn.removeAttribute('style');
-    
-    if (this.isListening) {
-        recordBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
-            </svg>
-            <span>停止錄音</span>
-        `;
-        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
-    } else {
-        recordBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-            </svg>
-            <span>開始錄音</span>
-        `;
-        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
+    updateChallengeRecordButton() {
+        const recordBtn = document.getElementById('challengeRecordBtn');
+        if (!recordBtn) return;
+        
+        // 強制移除所有現有的樣式類別
+        recordBtn.removeAttribute('class');
+        recordBtn.removeAttribute('style');
+        
+        if (this.isListening) {
+            recordBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                </svg>
+                <span>停止錄音</span>
+            `;
+            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
+        } else {
+            recordBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+                </svg>
+                <span>開始錄音</span>
+            `;
+            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
+        }
     }
-}
 
-// 重置挑戰模式轉錄顯示
-resetChallengeTranscriptDisplay() {
-    const transcriptArea = document.getElementById('challengeTranscriptArea');
-    if (transcriptArea) {
-        transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
-    }
-}
-
-updateTranscriptDisplay() {
-    // 根據當前螢幕選擇對應的轉錄區域
-    let transcriptArea;
-    if (this.currentScreen === 'challengeScreen') {
-        transcriptArea = document.getElementById('challengeTranscriptArea');
-    } else {
-        transcriptArea = document.getElementById('transcriptArea');
+    // 重置挑戰模式轉錄顯示
+    resetChallengeTranscriptDisplay() {
+        const transcriptArea = document.getElementById('challengeTranscriptArea');
+        if (transcriptArea) {
+            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
+        }
     }
     
-    if (!transcriptArea) {
-        console.log('找不到轉錄顯示區域');
-        return;
-    }        
+    updateTranscriptDisplay() {
+        // 根據當前螢幕選擇對應的轉錄區域
+        let transcriptArea;
+        if (this.currentScreen === 'challengeScreen') {
+            transcriptArea = document.getElementById('challengeTranscriptArea');
+        } else {
+            transcriptArea = document.getElementById('transcriptArea');
+        }
+        
+        if (!transcriptArea) {
+            console.log('找不到轉錄顯示區域');
+            return;
+        }
+        
         console.log('更新轉錄顯示:', {
             isListening: this.isListening,
             transcript: this.transcript,
@@ -798,22 +806,22 @@ updateTranscriptDisplay() {
             }
         }
         
-// 如果是挑戰模式，顯示下一題按鈕並記錄答案
-if (this.currentScreen === 'challengeScreen') {
-    document.getElementById('nextQuestionBtn').classList.remove('hidden');
-    
-    // 記錄挑戰答案
-    const currentQuestion = this.challengeQuestions[this.currentQuestionIndex];
-    this.challengeAnswers[this.currentQuestionIndex] = {
-        question: currentQuestion.practiceText,
-        userAnswer: this.transcript,
-        score: this.comparisonResult ? this.comparisonResult.score : 0
-    };
-    
-    // 更新當前分數
-    this.currentScore = Math.round(this.challengeAnswers.reduce((sum, answer) => sum + (answer.score || 0), 0) / this.challengeAnswers.length);
-}
-}
+        // 如果是挑戰模式，顯示下一題按鈕並記錄答案
+        if (this.currentScreen === 'challengeScreen') {
+            document.getElementById('nextQuestionBtn').classList.remove('hidden');
+            
+            // 記錄挑戰答案
+            const currentQuestion = this.challengeQuestions[this.currentQuestionIndex];
+            this.challengeAnswers[this.currentQuestionIndex] = {
+                question: currentQuestion.practiceText,
+                userAnswer: this.transcript,
+                score: this.comparisonResult ? this.comparisonResult.score : 0
+            };
+            
+            // 更新當前分數
+            this.currentScore = Math.round(this.challengeAnswers.reduce((sum, answer) => sum + (answer.score || 0), 0) / this.challengeAnswers.length);
+        }
+    }
 
     // 顯示句子回饋（簡化版，自動顯示在上方）
     showSentenceFeedback(details) {
@@ -848,7 +856,9 @@ if (this.currentScreen === 'challengeScreen') {
         `;
         
         // 插入到練習標題下方
-        const practiceTitle = document.getElementById('practiceTitle');
+        const practiceTitle = this.currentScreen === 'challengeScreen' ? 
+            document.getElementById('challengePracticeTitle') : 
+            document.getElementById('practiceTitle');
         if (practiceTitle && practiceTitle.parentNode) {
             practiceTitle.parentNode.insertBefore(feedbackDiv, practiceTitle.nextSibling);
         }
@@ -870,7 +880,9 @@ if (this.currentScreen === 'challengeScreen') {
         `;
         
         // 插入到轉錄區域下方
-        const transcriptArea = document.getElementById('transcriptArea');
+        const transcriptArea = this.currentScreen === 'challengeScreen' ? 
+            document.getElementById('challengeTranscriptArea') : 
+            document.getElementById('transcriptArea');
         if (transcriptArea && transcriptArea.parentNode) {
             transcriptArea.parentNode.insertBefore(hintDiv, transcriptArea.nextSibling);
         }
@@ -939,27 +951,27 @@ if (this.currentScreen === 'challengeScreen') {
         return '';
     }
 
-getCurrentItem() {
-    if (app.mode === 'challenge') {
-        return app.challengeQuestions[app.currentQuestionIndex] || null;
+    getCurrentItem() {
+        if (app.mode === 'challenge') {
+            return app.challengeQuestions[app.currentQuestionIndex] || null;
+        }
+        
+        const list = this.getCurrentList();
+        return list[this.currentIndex] || null;
     }
-    
-    const list = this.getCurrentList();
-    return list[this.currentIndex] || null;
-}
-    
-getCurrentList() {
-    if (app.mode === 'challenge') {
-        return app.challengeQuestions;
+        
+    getCurrentList() {
+        if (app.mode === 'challenge') {
+            return app.challengeQuestions;
+        }
+        
+        if (this.contentType === 'vocabulary') {
+            // 合併單字和片語
+            return [...vocabulary, ...idioms];
+        } else {
+            return passages;
+        }
     }
-    
-    if (this.contentType === 'vocabulary') {
-        // 合併單字和片語
-        return [...vocabulary, ...idioms];
-    } else {
-        return passages;
-    }
-}
 
     compareAndColorize(original, spoken) {
         const originalWords = this.getWords(original);
@@ -1484,16 +1496,19 @@ getCurrentList() {
         document.getElementById('detailedFeedback')?.remove();
         
         // 重置錄音按鈕
-        this.updateRecordButton();
+        this.updateRecordButtonByScreen();
         
         // 重置單字顏色
         this.resetWordColors();
         
         // 重置轉錄顯示
-        this.resetTranscriptDisplay();
+        if (this.currentScreen === 'challengeScreen') {
+            this.resetChallengeTranscriptDisplay();
+        } else {
+            this.resetTranscriptDisplay();
+        }
     }
-
-} // ← AppState 類別的結束括號
+}
 
 // 全域應用狀態
 const app = new AppState();
@@ -1609,61 +1624,60 @@ function renderList() {
     const allItemsList = document.getElementById('allItemsList');
     const listTitle = document.getElementById('listTitle');
 
-    
-// 更新標題
-const titleMap = {
-    'vocabulary': '詞彙列表',
-    'passage': '課文列表'
-};
-listTitle.textContent = titleMap[app.contentType] || '列表';
+    // 更新標題
+    const titleMap = {
+        'vocabulary': '詞彙列表',
+        'passage': '課文列表'
+    };
+    listTitle.textContent = titleMap[app.contentType] || '列表';
 
-// 取得資料
-let allItems = [];
-if (app.contentType === 'vocabulary') {
-    // 合併單字和片語
-    allItems = [...vocabulary, ...idioms];
-} else {
-    allItems = passages;
-}
-    
-// 渲染 iOS 風格列表
-allItemsList.innerHTML = allItems.map((item, index) => {
-    const isLast = index === allItems.length - 1;
-    
-    if ('word' in item) {
-        // 單字項目 - 顯示單字和意思
-        return `
-<button onclick="startPractice(${index}, 'list')" 
-        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <div style="flex: 1; min-width: 0;">
-        <p class="text-white text-body text-lg truncate font-semibold">${item.word}</p>
-        ${item.meaning ? `<p class="text-slate-400 text-sm truncate mt-1">${item.meaning}</p>` : ''}
-    </div>
-    <div style="flex-shrink: 0; margin-left: 16px;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-    </div>
-</button>
-`;
+    // 取得資料
+    let allItems = [];
+    if (app.contentType === 'vocabulary') {
+        // 合併單字和片語
+        allItems = [...vocabulary, ...idioms];
     } else {
-        // 課文項目 - 保持原有格式
-        const displayText = item.title;
-        return `
-<button onclick="startPractice(${index}, 'list')" 
-        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <div style="flex: 1; min-width: 0;">
-        <p class="text-white text-body text-lg truncate">${displayText}</p>
-    </div>
-    <div style="flex-shrink: 0; margin-left: 16px;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-    </div>
-</button>
-`;
+        allItems = passages;
     }
-}).join('');
+        
+    // 渲染 iOS 風格列表
+    allItemsList.innerHTML = allItems.map((item, index) => {
+        const isLast = index === allItems.length - 1;
+        
+        if ('word' in item) {
+            // 單字項目 - 顯示單字和意思
+            return `
+    <button onclick="startPractice(${index}, 'list')" 
+            class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="flex: 1; min-width: 0;">
+            <p class="text-white text-body text-lg truncate font-semibold">${item.word}</p>
+            ${item.meaning ? `<p class="text-slate-400 text-sm truncate mt-1">${item.meaning}</p>` : ''}
+        </div>
+        <div style="flex-shrink: 0; margin-left: 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </button>
+    `;
+        } else {
+            // 課文項目 - 保持原有格式
+            const displayText = item.title;
+            return `
+    <button onclick="startPractice(${index}, 'list')" 
+            class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="flex: 1; min-width: 0;">
+            <p class="text-white text-body text-lg truncate">${displayText}</p>
+        </div>
+        <div style="flex-shrink: 0; margin-left: 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </button>
+    `;
+        }
+    }).join('');
 }
 
 // 開始練習
@@ -1720,14 +1734,13 @@ function updatePracticeScreen() {
             practiceTitle.innerHTML = wordsHtml;
         }
     } else {
-    // 單字或片語
-    const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
-    practiceTitle.innerHTML = `
-        <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>
-        ${meaningDisplay}
-    `;
-}
-
+        // 單字或片語
+        const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
+        practiceTitle.innerHTML = `
+            <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>
+            ${meaningDisplay}
+        `;
+    }
     
     // 更新副標題（僅課文有多句）
     if ('sentences' in item && item.sentences.length > 1) {
@@ -1893,7 +1906,6 @@ function startChallenge(challengeType = 'mixed') {
     updateChallengeScreen();
 }
 
-
 // 錄音控制
 function toggleRecording() {
     if (app.isListening) {
@@ -1914,7 +1926,6 @@ function toggleRecording() {
         }
     }
 }
-
 
 // 更新挑戰螢幕
 function updateChallengeScreen() {
@@ -1956,12 +1967,12 @@ function updateChallengeScreen() {
         `;
     }
     
-// 重置錄音狀態
-app.transcript = '';
-app.comparisonResult = null;
-app.resetWordColors();
-app.updateChallengeRecordButton();
-app.resetChallengeTranscriptDisplay();
+    // 重置錄音狀態
+    app.transcript = '';
+    app.comparisonResult = null;
+    app.resetWordColors();
+    app.updateChallengeRecordButton();
+    app.resetChallengeTranscriptDisplay();
     
     // 隱藏下一題按鈕
     document.getElementById('nextQuestionBtn').classList.add('hidden');
@@ -2058,7 +2069,6 @@ function toggleChallengeRecording() {
     }
 }
 
-
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
     console.log('頁面載入完成，開始初始化...');
@@ -2082,66 +2092,64 @@ document.addEventListener('DOMContentLoaded', function() {
         showScreen('contentTypeSelection');
     });
     
-// 挑戰模式類型選擇
-document.getElementById('challengeMode').addEventListener('click', () => {
-    if (!dataLoaded) {
-        alert('數據尚未載入完成，請稍候');
-        return;
-    }
-    showScreen('challengeTypeSelection');
-});
+    // 挑戰模式類型選擇
+    document.getElementById('challengeMode').addEventListener('click', () => {
+        if (!dataLoaded) {
+            alert('數據尚未載入完成，請稍候');
+            return;
+        }
+        showScreen('challengeTypeSelection');
+    });
 
-// 挑戰類型選擇
-document.getElementById('vocabularyChallengeType').addEventListener('click', () => {
-    startChallenge('vocabulary');
-});
+    // 挑戰類型選擇
+    document.getElementById('vocabularyChallengeType').addEventListener('click', () => {
+        startChallenge('vocabulary');
+    });
 
-document.getElementById('passageChallengeType').addEventListener('click', () => {
-    startChallenge('passage');
-});
+    document.getElementById('passageChallengeType').addEventListener('click', () => {
+        startChallenge('passage');
+    });
 
-document.getElementById('mixedChallengeType').addEventListener('click', () => {
-    startChallenge('mixed');
-});
+    document.getElementById('mixedChallengeType').addEventListener('click', () => {
+        startChallenge('mixed');
+    });
 
-// 挑戰模式按鈕
-document.getElementById('challengeSpeakBtn').addEventListener('click', () => {
-    const question = app.challengeQuestions[app.currentQuestionIndex];
-    if (question && question.practiceText) {
-        const audioFile = question.audio || '';
-        speakText(question.practiceText, audioFile);
-    }
-});
+    // 挑戰模式按鈕
+    document.getElementById('challengeSpeakBtn').addEventListener('click', () => {
+        const question = app.challengeQuestions[app.currentQuestionIndex];
+        if (question && question.practiceText) {
+            const audioFile = question.audio || '';
+            speakText(question.practiceText, audioFile);
+        }
+    });
 
-document.getElementById('challengeRecordBtn').addEventListener('click', toggleChallengeRecording);
-document.getElementById('nextQuestionBtn').addEventListener('click', nextChallengeQuestion);
+    document.getElementById('challengeRecordBtn').addEventListener('click', toggleChallengeRecording);
+    document.getElementById('nextQuestionBtn').addEventListener('click', nextChallengeQuestion);
 
-// 導航按鈕
-document.getElementById('backToModeFromChallenge').addEventListener('click', () => showScreen('modeSelection'));
-document.getElementById('backToListFromChallenge').addEventListener('click', () => showScreen('challengeTypeSelection'));
+    // 導航按鈕
+    document.getElementById('backToModeFromChallenge').addEventListener('click', () => showScreen('modeSelection'));
+    document.getElementById('backToListFromChallenge').addEventListener('click', () => showScreen('challengeTypeSelection'));
 
-// 結果頁面按鈕
-document.getElementById('retryCurrentChallengeBtn').addEventListener('click', () => {
-    startChallenge(app.challengeType);
-});
+    // 結果頁面按鈕
+    document.getElementById('retryCurrentChallengeBtn').addEventListener('click', () => {
+        startChallenge(app.challengeType);
+    });
 
-document.getElementById('newChallengeBtn').addEventListener('click', () => {
-    showScreen('challengeTypeSelection');
-});
-
+    document.getElementById('newChallengeBtn').addEventListener('click', () => {
+        showScreen('challengeTypeSelection');
+    });
     
     // 內容類型選擇
-document.getElementById('vocabularyType').addEventListener('click', () => {
-    app.resetAllStates();
-    app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
-    if (app.mode === 'practice') {
-        showScreen('listView');
-        renderList();
-    } else {
-        startChallenge(); // 挑戰模式不分類型
-    }
-});
-
+    document.getElementById('vocabularyType').addEventListener('click', () => {
+        app.resetAllStates();
+        app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
+        if (app.mode === 'practice') {
+            showScreen('listView');
+            renderList();
+        } else {
+            startChallenge(); // 挑戰模式不分類型
+        }
+    });
 
     document.getElementById('passageType').addEventListener('click', () => {
         app.resetAllStates();
@@ -2203,8 +2211,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-
-
-
-
-
