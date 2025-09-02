@@ -590,6 +590,7 @@ class AppState {
     }
 
 // 確保所有音頻播放停止
+// 確保所有音頻播放停止
 ensureAudioStopped() {
     // 停止所有 HTML audio 元素
     const audioElements = document.querySelectorAll('audio');
@@ -602,10 +603,8 @@ ensureAudioStopped() {
         audio.load();
     });
     
-    // 停止語音合成
-    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-    }
+    // 移除 TTS 相關代碼
+    // 不再需要 speechSynthesis.cancel()
     
     console.log('All audio playback stopped and resources released');
 }
@@ -1552,12 +1551,13 @@ function speakText(text, audioFile = null) {
         console.log('Stopped recording before playing audio');
     }
     
-    // 禁用錄音按鈕
-    disableRecordingButtons();
-    
-    // 如果有音檔，優先播放音檔
+    // 只有當有音檔時才播放，否則不做任何事
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
+        
+        // 禁用錄音按鈕
+        disableRecordingButtons();
+        
         const audio = new Audio(audioFile);
         
         // 確保音頻完全停止後才允許錄音
@@ -1571,55 +1571,26 @@ function speakText(text, audioFile = null) {
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
-            console.log('Falling back to TTS');
-            enableRecordingButtons(); // 錯誤時也要重新啟用按鈕
-            speakWithTTS(text);
+            // 錯誤時重新啟用按鈕，但不播放 TTS
+            enableRecordingButtons();
+            alert('音檔載入失敗，請檢查檔案是否存在');
         };
         
         audio.play().then(() => {
             console.log('Audio playing successfully');
         }).catch(error => {
             console.warn(`音檔播放失敗: ${audioFile}`, error);
-            console.log('Falling back to TTS');
-            enableRecordingButtons(); // 錯誤時也要重新啟用按鈕
-            speakWithTTS(text);
+            // 錯誤時重新啟用按鈕，但不播放 TTS
+            enableRecordingButtons();
+            alert('音檔播放失敗');
         });
     } else {
-        console.log('No audio file provided, using TTS');
-        speakWithTTS(text);
+        console.log('No audio file provided, cannot play sound');
+        // 如果沒有音檔，顯示提示但不播放任何聲音
+        alert('此項目沒有對應的音檔');
     }
 }
 
-function speakWithTTS(text) {
-    console.log('Using TTS for:', text);
-    if ('speechSynthesis' in window) {
-        // 停止任何正在進行的語音合成
-        window.speechSynthesis.cancel();
-        
-        // 禁用錄音按鈕（如果還沒禁用的話）
-        disableRecordingButtons();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
-        
-        // TTS 結束後確保設備釋放
-        utterance.onend = function() {
-            console.log('TTS ended, enabling recording buttons');
-            setTimeout(() => {
-                enableRecordingButtons();
-                console.log('Recording buttons enabled after TTS');
-            }, 200);
-        };
-        
-        utterance.onerror = function() {
-            console.log('TTS error, enabling recording buttons');
-            enableRecordingButtons();
-        };
-        
-        window.speechSynthesis.speak(utterance);
-    }
-}
 
 // 列表渲染功能
 function renderList() {
@@ -2259,5 +2230,6 @@ function enableRecordingButtons() {
         app.updateChallengeRecordButton();
     }
 }
+
 
 
