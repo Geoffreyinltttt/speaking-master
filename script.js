@@ -468,117 +468,92 @@ initSpeechRecognition() {
         this.recognition.webkitContinuous = true;
         this.recognition.webkitInterimResults = true;
     }
-    
-    // 如果已有語音識別器，先清理
-    if (this.recognition) {
-        try {
-            this.recognition.stop();
-            this.recognition = null;
-        } catch (e) {
-            console.log('清理舊的語音識別器');
-        }
-    }
+
+    this.recognition.onstart = () => {
+        console.log('語音識別已啟動');
+        this.updateTranscriptDisplay(); // 立即更新顯示
+    };
+
+    this.recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interim = '';
         
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        this.recognition = new SpeechRecognition();
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true;
-        this.recognition.lang = 'en-US';
-
-        // 優化語音識別設定，讓反應更即時
-        this.recognition.maxAlternatives = 1;
+        console.log('語音識別結果事件觸發，結果數量:', event.results.length);
         
-        // 對於 Chrome/Edge，設定更積極的即時結果
-        if (this.recognition.webkitSpeechRecognition) {
-            this.recognition.webkitContinuous = true;
-            this.recognition.webkitInterimResults = true;
-        }
-
-        this.recognition.onstart = () => {
-            console.log('語音識別已啟動');
-            this.updateTranscriptDisplay(); // 立即更新顯示
-        };
-
-        this.recognition.onresult = (event) => {
-            let finalTranscript = '';
-            let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const result = event.results[i][0];
+            console.log(`結果 ${i}: "${result.transcript}" (信心度: ${result.confidence}, 是否最終: ${event.results[i].isFinal})`);
             
-            console.log('語音識別結果事件觸發，結果數量:', event.results.length);
-            
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const result = event.results[i][0];
-                console.log(`結果 ${i}: "${result.transcript}" (信心度: ${result.confidence}, 是否最終: ${event.results[i].isFinal})`);
-                
-                if (event.results[i].isFinal) {
-                    if (result.confidence > 0.3) {
-                        finalTranscript += result.transcript;
-                    }
-                } else {
-                    interim += result.transcript;
+            if (event.results[i].isFinal) {
+                if (result.confidence > 0.3) {
+                    finalTranscript += result.transcript;
                 }
+            } else {
+                interim += result.transcript;
             }
-            
-            this.interimTranscript = interim;
-            this.transcript += finalTranscript;
-            
-            console.log('當前轉錄狀態:', {
-                final: this.transcript,
-                interim: this.interimTranscript,
-                isListening: this.isListening
-            });
-            
-            // 即時更新文字顏色
-            this.updateWordColors();
-            
-            // 即時更新轉錄顯示
-            this.updateTranscriptDisplay();
-        };
-
-        this.recognition.onspeechstart = () => {
-            console.log('檢測到語音開始');
-        };
-
-        this.recognition.onspeechend = () => {
-            console.log('檢測到語音結束');
-        };
-
-        this.recognition.onaudiostart = () => {
-            console.log('音頻捕獲開始');
-        };
-
-        this.recognition.onaudioend = () => {
-            console.log('音頻捕獲結束');
-        };
-
+        }
         
-        this.recognition.onerror = (event) => {
-            let errorMsg = '';
-            switch(event.error) {
-                case 'no-speech':
-                    errorMsg = '未偵測到語音，請再試一次。';
-                    break;
-                case 'audio-capture':
-                    errorMsg = '無法取用麥克風。請檢查權限設定。';
-                    break;
-                case 'not-allowed':
-                    errorMsg = '麥克風權限被拒絕。';
-                    break;
-                default:
-                    errorMsg = `發生錯誤: ${event.error}`;
-            }
-            console.error(errorMsg);
-            this.stopListening();
-        };
+        this.interimTranscript = interim;
+        this.transcript += finalTranscript;
         
-        this.recognition.onend = () => {
-            this.isListening = false;
-            this.interimTranscript = '';
-            this.updateRecordButton();
-            if (this.transcript) {
-                this.processTranscript();
-            }
-        };
-    }
+        console.log('當前轉錄狀態:', {
+            final: this.transcript,
+            interim: this.interimTranscript,
+            isListening: this.isListening
+        });
+        
+        // 即時更新文字顏色
+        this.updateWordColors();
+        
+        // 即時更新轉錄顯示
+        this.updateTranscriptDisplay();
+    };
+
+    this.recognition.onspeechstart = () => {
+        console.log('檢測到語音開始');
+    };
+
+    this.recognition.onspeechend = () => {
+        console.log('檢測到語音結束');
+    };
+
+    this.recognition.onaudiostart = () => {
+        console.log('音頻捕獲開始');
+    };
+
+    this.recognition.onaudioend = () => {
+        console.log('音頻捕獲結束');
+    };
+
+    this.recognition.onerror = (event) => {
+        let errorMsg = '';
+        switch(event.error) {
+            case 'no-speech':
+                errorMsg = '未偵測到語音，請再試一次。';
+                break;
+            case 'audio-capture':
+                errorMsg = '無法取用麥克風。請檢查權限設定。';
+                break;
+            case 'not-allowed':
+                errorMsg = '麥克風權限被拒絕。';
+                break;
+            default:
+                errorMsg = `發生錯誤: ${event.error}`;
+        }
+        console.error(errorMsg);
+        this.stopListening();
+    };
+    
+    this.recognition.onend = () => {
+        this.isListening = false;
+        this.interimTranscript = '';
+        this.updateRecordButton();
+        if (this.transcript) {
+            this.processTranscript();
+        }
+    };
+}
+
     
     startListening() {
         // 檢查是否被禁用
