@@ -770,15 +770,28 @@ function startPractice(index, from = 'list') {
     updatePracticeScreen();
 }
 
-// 更新練習螢幕
+
 function updatePracticeScreen() {
-    // 新增：清理音頻物件
+    // 新增：完全清理音頻和語音識別狀態
+    if (app.isListening) {
+        app.stopListening();
+    }
+    app.ensureAudioStopped();
+    
+    // 新增：徹底清理 SpeechRecognition 物件
+    if (app.recognition) {
+        app.recognition.abort();
+        app.recognition = null;
+    }
+    
+    // 新增：清理所有音頻物件
     document.querySelectorAll('audio').forEach(audio => {
         audio.pause();
         audio.currentTime = 0;
         audio.remove();
     });
     
+    // 以下是您原本的完整程式碼，完全不變
     document.getElementById('detailedFeedback')?.remove();
     
     const item = app.getCurrentItem();
@@ -956,4 +969,5 @@ window.toggleRecording = toggleRecording;
 window.speakText = speakText;
 window.dismissWarning = dismissWarning;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
