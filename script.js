@@ -600,24 +600,19 @@ initSpeechRecognition() {
         }, 500);
     }
 
-    // 確保所有音頻播放停止
-    ensureAudioStopped() {
-        // 停止所有 HTML audio 元素
-        const audioElements = document.querySelectorAll('audio');
-        audioElements.forEach(audio => {
-            if (!audio.paused) {
-                audio.pause();
-                audio.currentTime = 0;
-            }
-        });
-        
-        // 停止語音合成
-        if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
+// 確保所有音頻播放停止
+ensureAudioStopped() {
+    // 停止所有 HTML audio 元素
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+        if (!audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
         }
-        
-        console.log('All audio playback stopped');
-    }
+    });
+    
+    console.log('All audio playback stopped');
+}
         
 stopListening() {
     if (!this.recognition || !this.isListening) return;
@@ -1490,7 +1485,6 @@ function showScreen(screenId) {
     app.currentScreen = screenId;
 }
 
-// 語音合成功能 - 支持音檔和 TTS
 function speakText(text, audioFile = null) {
     console.log('speakText called with:', { text, audioFile });
     
@@ -1505,9 +1499,24 @@ function speakText(text, audioFile = null) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
-        // 確保音頻完全停止後才允許錄音
+        // 確保音頻完全停止後重新設定語音識別器
         audio.onended = function() {
-            console.log('Audio playback ended, enabling recording after delay');
+            console.log('Audio playback ended, reinitializing speech recognition');
+            // 延遲重新初始化語音識別器以避免設備衝突
+            setTimeout(() => {
+                if (app.recognition) {
+                    try {
+                        app.recognition.stop();
+                    } catch (e) {
+                        console.log('Stopping existing recognition');
+                    }
+                }
+                // 重新創建語音識別器
+                setTimeout(() => {
+                    app.initSpeechRecognition();
+                    console.log('Speech recognition reinitialized');
+                }, 500);
+            }, 300);
         };
         
         audio.onerror = function(e) {
@@ -1527,27 +1536,6 @@ function speakText(text, audioFile = null) {
     }
 }
 
-function speakWithTTS(text) {
-    console.log('Using TTS for:', text);
-    if ('speechSynthesis' in window) {
-        // 停止任何正在進行的語音合成
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
-        
-        // TTS 結束後確保設備釋放
-        utterance.onend = function() {
-            console.log('TTS ended, audio device released');
-            setTimeout(() => {
-                console.log('Ready for recording after TTS');
-            }, 300);
-        };
-        
-        window.speechSynthesis.speak(utterance);
-    }
-}
 
 // 列表渲染功能
 function renderList() {
