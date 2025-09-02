@@ -606,18 +606,21 @@ class AppState {
         console.log('All audio playback stopped');
     }
         
-    stopListening() {
-        if (!this.recognition || !this.isListening) return;
-        
-        this.recognition.stop();
-        this.isListening = false;
-        this.updateRecordButton();
-        
-        // 最終更新顏色
-        setTimeout(() => {
-            this.updateWordColors();
-        }, 100);
-    }
+stopListening() {
+    if (!this.recognition || !this.isListening) return;
+    
+    this.recognition.stop();
+    this.isListening = false;
+    this.updateRecordButton();
+    
+    // 立即更新轉錄顯示狀態
+    this.updateTranscriptDisplay();
+    
+    // 最終更新顏色
+    setTimeout(() => {
+        this.updateWordColors();
+    }, 100);
+}
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
@@ -706,18 +709,18 @@ class AppState {
             
             transcriptArea.innerHTML = `<div class="text-center">${displayContent}</div>`;
         } else if (this.transcript) {
-            // 錄音結束後顯示最終結果
-            transcriptArea.innerHTML = `
-                <div class="text-center">
-                    <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
-                    <p class="text-white font-medium text-lg">${this.transcript}</p>
-                    <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
-                </div>
-            `;
-        } else {
-            // 初始狀態
-            transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
-        }
+    // 錄音結束後顯示最終結果
+    transcriptArea.innerHTML = `
+        <div class="text-center">
+            <p class="text-sm text-slate-300 mb-2">錄音完成，您說的是：</p>
+            <p class="text-white font-medium text-lg">${this.transcript}</p>
+            <p class="text-xs text-slate-400 mt-2">正在分析中...</p>
+        </div>
+    `;
+} else {
+    // 初始狀態
+    transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
+}
     }
     
     processTranscript() {
