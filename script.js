@@ -574,30 +574,58 @@ initSpeechRecognition() {
         this.comparisonResult = null;
         this.resetWordColors();
         
-// 增加延遲確保音頻設備完全釋放
-        setTimeout(() => {
+// 確保音頻完全停止
+this.ensureAudioStopped();
+
+// 如果語音識別器不存在或狀態異常，重新初始化
+if (!this.recognition) {
+    this.initSpeechRecognition();
+}
+
+// 延遲啟動，確保設備準備就緒
+setTimeout(() => {
+    try {
+        this.recognition.start();
+        this.isListening = true;
+        this.updateRecordButton();
+        console.log('語音識別成功啟動');
+    } catch (e) {
+        console.error('語音辨識無法啟動:', e);
+        
+        // 如果是因為識別器已經在運行，先停止再重啟
+        if (e.message && e.message.includes('already started')) {
             try {
-                // 重新初始化語音識別器以確保狀態正確
-                this.initSpeechRecognition();
-                this.recognition.start();
-                this.isListening = true;
-                this.updateRecordButton();
-            } catch (e) {
-                console.error('語音辨識無法啟動:', e);
-                // 如果失敗，再試一次
+                this.recognition.stop();
                 setTimeout(() => {
-                    try {
-                        this.initSpeechRecognition();
-                        this.recognition.start();
-                        this.isListening = true;
-                        this.updateRecordButton();
-                    } catch (e2) {
-                        console.error('語音辨識第二次嘗試也失敗:', e2);
-                        alert('語音識別啟動失敗，請重新整理頁面再試。');
-                    }
-                }, 1000);
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.updateRecordButton();
+                }, 100);
+            } catch (e2) {
+                console.error('重啟語音識別失敗:', e2);
+                // 完全重新初始化
+                this.initSpeechRecognition();
+                setTimeout(() => {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.updateRecordButton();
+                }, 500);
             }
-        }, 500);
+        } else {
+            // 其他錯誤，重新初始化
+            this.initSpeechRecognition();
+            setTimeout(() => {
+                try {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.updateRecordButton();
+                } catch (e3) {
+                    alert('語音識別啟動失敗，請重新整理頁面再試。');
+                }
+            }, 500);
+        }
+    }
+}, 300);
     }
 
 // 確保所有音頻播放停止
@@ -629,27 +657,6 @@ stopListening() {
         this.updateWordColors();
     }, 100);
     
-    // 重置音頻增益，避免影響後續音檔播放
-    setTimeout(() => {
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime); // 靜音
-            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-            oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.01); // 播放 0.01 秒的靜音
-            
-            setTimeout(() => {
-                audioContext.close();
-            }, 100);
-        } catch (e) {
-            console.log('Audio context reset failed:', e);
-        }
-    }, 200);
 }
 
     
@@ -1520,29 +1527,24 @@ function speakText(text, audioFile = null) {
     // 如果有音檔，優先播放音檔
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
-        const audio = new Audio(audioFile);
-audio.volume = 0.6; // 設定為 60% 音量，可以調整
+const audio = new Audio(audioFile);
+audio.volume = 0.5; // 統一音量為 50%
 audio.preload = 'auto';
+
+// 重置音頻上下文，避免音量累積問題
+if (window.audioContext) {
+    window.audioContext.close();
+    window.audioContext = null;
+}
         
         // 確保音頻完全停止後重新設定語音識別器
-        audio.onended = function() {
-            console.log('Audio playback ended, reinitializing speech recognition');
-            // 延遲重新初始化語音識別器以避免設備衝突
-            setTimeout(() => {
-                if (app.recognition) {
-                    try {
-                        app.recognition.stop();
-                    } catch (e) {
-                        console.log('Stopping existing recognition');
-                    }
-                }
-                // 重新創建語音識別器
-                setTimeout(() => {
-                    app.initSpeechRecognition();
-                    console.log('Speech recognition reinitialized');
-                }, 500);
-            }, 300);
-        };
+audio.onended = function() {
+    console.log('Audio playback ended');
+    // 不要在這裡重新初始化語音識別器
+    // 只需要確保音頻完全停止
+    audio.src = '';
+    audio.load();
+};
         
         audio.onerror = function(e) {
             console.warn(`❌ 音檔載入失敗: ${audioFile}`, e);
@@ -1656,6 +1658,18 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
+// 停止所有音頻播放
+const allAudios = document.querySelectorAll('audio');
+allAudios.forEach(audio => {
+    audio.pause();
+    audio.src = '';
+    audio.load();
+});
+
+// 如果正在錄音，先停止
+if (app.isListening) {
+    app.stopListening();
+}
     // 清理之前的回饋內容
     document.getElementById('detailedFeedback')?.remove();
     document.getElementById('clickHint')?.remove();
