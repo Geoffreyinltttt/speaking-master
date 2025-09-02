@@ -161,6 +161,49 @@ function showDebugInfo(message) {
     debugDiv.textContent = message;
 }
 
+// 新增持續性調試面板
+function createDebugPanel() {
+    let panel = document.getElementById('debugPanel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'debugPanel';
+        panel.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 11px;
+            line-height: 1.3;
+            font-family: monospace;
+            border: 1px solid #0f0;
+        `;
+        panel.innerHTML = '<div style="color: #ff0; margin-bottom: 5px;">📱 調試面板</div>';
+        document.body.appendChild(panel);
+    }
+    return panel;
+}
+
+function debugLog(message) {
+    const panel = createDebugPanel();
+    const time = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.textContent = `[${time}] ${message}`;
+    panel.appendChild(logEntry);
+    panel.scrollTop = panel.scrollHeight;
+    
+    // 只保留最近20條記錄
+    while (panel.children.length > 21) {
+        panel.removeChild(panel.children[1]);
+    }
+}
+
 // 隱藏調試資訊
 function hideDebugInfo() {
     const debugDiv = document.getElementById('debugInfo');
@@ -556,6 +599,15 @@ initSpeechRecognition() {
 
     
     startListening() {
+    // 新增：先移除所有音頻元素
+    document.querySelectorAll('audio').forEach(a => a.remove());
+    
+    // 新增：如果沒有識別器，創建一個
+    if (!this.recognition) {
+        this.initSpeechRecognition();
+    }
+
+
         // 檢查是否被禁用
         if (window.speechDisabled) {
             alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
@@ -584,7 +636,7 @@ if (!this.recognition) {
 
 // 延遲啟動，確保設備準備就緒
 setTimeout(() => {
-    try {
+    try {	
         this.recognition.start();
         this.isListening = true;
         this.updateRecordButton();
@@ -1516,53 +1568,34 @@ function showScreen(screenId) {
 }
 
 function speakText(text, audioFile = null) {
-    console.log('speakText called with:', { text, audioFile });
-    
-    // 如果正在錄音，先停止
+    // 停止錄音
     if (app.isListening) {
         app.stopListening();
-        console.log('Stopped recording before playing audio');
     }
     
-    // 如果有音檔，優先播放音檔
+    // 停止並移除所有舊的音頻
+    document.querySelectorAll('audio').forEach(a => a.remove());
+    
     if (audioFile && audioFile.trim()) {
-        console.log('Attempting to play audio file:', audioFile);
-const audio = new Audio(audioFile);
-audio.volume = 0.5; // 統一音量為 50%
-audio.preload = 'auto';
-
-// 重置音頻上下文，避免音量累積問題
-if (window.audioContext) {
-    window.audioContext.close();
-    window.audioContext = null;
-}
+        // 創建新的音頻元素
+        const audio = document.createElement('audio');
+        audio.src = audioFile;
+        audio.volume = 0.5;
+        document.body.appendChild(audio);
         
-        // 確保音頻完全停止後重新設定語音識別器
-audio.onended = function() {
-    console.log('Audio playback ended');
-    // 不要在這裡重新初始化語音識別器
-    // 只需要確保音頻完全停止
-    audio.src = '';
-    audio.load();
-};
-        
-        audio.onerror = function(e) {
-            console.warn(`❌ 音檔載入失敗: ${audioFile}`, e);
-            alert('音檔無法播放，請檢查檔案路徑');
+        // 播放結束後移除
+        audio.onended = () => {
+            audio.remove();
         };
         
-        audio.play().then(() => {
-            console.log('🎵 音檔播放成功');
-        }).catch(error => {
-            console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
-            alert('音檔無法播放，請檢查檔案路徑或瀏覽器設定');
+        // 播放
+        audio.play().catch(() => {
+            alert('音檔無法播放');
         });
     } else {
-        console.log('❌ 沒有提供音檔');
-        alert('此項目沒有音檔，請確認 Excel 檔案中有設定音檔路徑');
+        alert('沒有音檔');
     }
 }
-
 
 // 列表渲染功能
 function renderList() {
