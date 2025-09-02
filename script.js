@@ -437,12 +437,22 @@ class AppState {
         this.initSpeechRecognition();
     }
         
-    initSpeechRecognition() {
-        // 檢查瀏覽器相容性
-        if (!checkBrowserCompatibility()) {
-            console.error('瀏覽器不支持語音識別');
-            return;
+initSpeechRecognition() {
+    // 檢查瀏覽器相容性
+    if (!checkBrowserCompatibility()) {
+        console.error('瀏覽器不支持語音識別');
+        return;
+    }
+    
+    // 如果已有語音識別器，先清理
+    if (this.recognition) {
+        try {
+            this.recognition.stop();
+            this.recognition = null;
+        } catch (e) {
+            console.log('清理舊的語音識別器');
         }
+    }
         
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
@@ -564,9 +574,11 @@ class AppState {
         this.comparisonResult = null;
         this.resetWordColors();
         
-        // 增加延遲確保音頻設備完全釋放
+// 增加延遲確保音頻設備完全釋放
         setTimeout(() => {
             try {
+                // 重新初始化語音識別器以確保狀態正確
+                this.initSpeechRecognition();
                 this.recognition.start();
                 this.isListening = true;
                 this.updateRecordButton();
@@ -575,16 +587,17 @@ class AppState {
                 // 如果失敗，再試一次
                 setTimeout(() => {
                     try {
+                        this.initSpeechRecognition();
                         this.recognition.start();
                         this.isListening = true;
                         this.updateRecordButton();
                     } catch (e2) {
                         console.error('語音辨識第二次嘗試也失敗:', e2);
-                        alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
+                        alert('語音識別啟動失敗，請重新整理頁面再試。');
                     }
                 }, 1000);
             }
-        }, 200);
+        }, 500);
     }
 
     // 確保所有音頻播放停止
@@ -1492,13 +1505,14 @@ function speakText(text, audioFile = null) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
-        // 確保音頻完全停止後才允許錄音
+// 確保音頻完全停止後才允許錄音
         audio.onended = function() {
             console.log('Audio playback ended, enabling recording after delay');
-            // 增加延遲確保音頻設備完全釋放
+            // 重新初始化語音識別器
             setTimeout(() => {
-                console.log('Audio device should be ready for recording now');
-            }, 500);
+                console.log('重新初始化語音識別器');
+                app.initSpeechRecognition();
+            }, 800);
         };
         
 audio.onerror = function(e) {
