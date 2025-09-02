@@ -1503,16 +1503,15 @@ audio.onerror = function(e) {
             alert('音檔無法播放，請檢查檔案路徑');
         };
         
-        audio.play().then(() => {
-            console.log('Audio playing successfully');
+ audio.play().then(() => {
+            console.log('🎵 音檔播放成功');
         }).catch(error => {
-            console.warn(`音檔播放失敗: ${audioFile}`, error);
-            console.log('Falling back to TTS');
-            speakWithTTS(text);
+            console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
+            alert('音檔無法播放，請檢查檔案路徑或瀏覽器設定');
         });
     } else {
-        console.log('No audio file provided, using TTS');
-        speakWithTTS(text);
+        console.log('❌ 沒有提供音檔');
+        alert('此項目沒有音檔，請確認 Excel 檔案中有設定音檔路徑');
     }
 }
 
