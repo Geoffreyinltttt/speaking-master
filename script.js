@@ -1552,44 +1552,28 @@ function speakText(text, audioFile = null) {
         console.log('Stopped recording before playing audio');
     }
     
-    // 確保所有音頻都停止
-    app.ensureAudioStopped();
+    // 禁用錄音按鈕
+    disableRecordingButtons();
     
     // 如果有音檔，優先播放音檔
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
-        // 設定音頻屬性以更好地釋放資源
-        audio.preload = 'none';
-        
         // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
-            console.log('Audio playback ended, releasing resources');
-            // 主動釋放音頻資源
-            audio.src = '';
-            audio.load();
-            // 增加延遲確保音頻設備完全釋放
+            console.log('Audio playback ended, enabling recording buttons');
             setTimeout(() => {
-                console.log('Audio device should be ready for recording now');
-            }, 800);
+                enableRecordingButtons();
+                console.log('Recording buttons enabled');
+            }, 300);
         };
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
             console.log('Falling back to TTS');
-            // 釋放失敗的音頻資源
-            audio.src = '';
-            audio.load();
+            enableRecordingButtons(); // 錯誤時也要重新啟用按鈕
             speakWithTTS(text);
-        };
-        
-        // 添加額外的事件監聽器確保資源釋放
-        audio.onpause = function() {
-            setTimeout(() => {
-                audio.src = '';
-                audio.load();
-            }, 100);
         };
         
         audio.play().then(() => {
@@ -1597,9 +1581,7 @@ function speakText(text, audioFile = null) {
         }).catch(error => {
             console.warn(`音檔播放失敗: ${audioFile}`, error);
             console.log('Falling back to TTS');
-            // 釋放失敗的音頻資源
-            audio.src = '';
-            audio.load();
+            enableRecordingButtons(); // 錯誤時也要重新啟用按鈕
             speakWithTTS(text);
         });
     } else {
@@ -1614,16 +1596,25 @@ function speakWithTTS(text) {
         // 停止任何正在進行的語音合成
         window.speechSynthesis.cancel();
         
+        // 禁用錄音按鈕（如果還沒禁用的話）
+        disableRecordingButtons();
+        
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 0.9;
         
         // TTS 結束後確保設備釋放
         utterance.onend = function() {
-            console.log('TTS ended, audio device released');
+            console.log('TTS ended, enabling recording buttons');
             setTimeout(() => {
-                console.log('Ready for recording after TTS');
-            }, 300);
+                enableRecordingButtons();
+                console.log('Recording buttons enabled after TTS');
+            }, 200);
+        };
+        
+        utterance.onerror = function() {
+            console.log('TTS error, enabling recording buttons');
+            enableRecordingButtons();
         };
         
         window.speechSynthesis.speak(utterance);
@@ -1931,19 +1922,7 @@ function toggleRecording() {
     if (app.isListening) {
         app.stopListening();
     } else {
-        // 檢查是否有音頻正在播放
-        const hasActiveAudio = document.querySelector('audio:not([paused])') || 
-                             ('speechSynthesis' in window && window.speechSynthesis.speaking);
-        
-        if (hasActiveAudio) {
-            // 如果有音頻在播放，先停止然後延遲開始錄音
-            app.ensureAudioStopped();
-            setTimeout(() => {
-                app.startListening();
-            }, 500);
-        } else {
-            app.startListening();
-        }
+        app.startListening();
     }
 }
 
@@ -2068,20 +2047,21 @@ function showChallengeResult() {
     showScreen('challengeResult');
 }
 
+// 錄音控制
+function toggleRecording() {
+    if (app.isListening) {
+        app.stopListening();
+    } else {
+        app.startListening();
+    }
+}
+
 // 挑戰模式錄音控制
 function toggleChallengeRecording() {
     if (app.isListening) {
         app.stopListening();
     } else {
-        // 確保所有音頻都已停止
-        app.ensureAudioStopped();
-        
-        // 增加更長的延遲等待音頻設備完全釋放
-        setTimeout(() => {
-            if (!app.isListening) { // 確保在延遲期間用戶沒有再次點擊
-                app.startListening();
-            }
-        }, 800); // 增加到 800ms
+        app.startListening();
     }
 }
 
@@ -2228,5 +2208,56 @@ window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
 
+// 禁用錄音按鈕
+function disableRecordingButtons() {
+    const recordBtn = document.getElementById('recordBtn');
+    const challengeRecordBtn = document.getElementById('challengeRecordBtn');
+    
+    if (recordBtn) {
+        recordBtn.disabled = true;
+        recordBtn.style.opacity = '0.5';
+        recordBtn.style.cursor = 'not-allowed';
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+            </svg>
+            <span>音檔播放中...</span>
+        `;
+    }
+    
+    if (challengeRecordBtn) {
+        challengeRecordBtn.disabled = true;
+        challengeRecordBtn.style.opacity = '0.5';
+        challengeRecordBtn.style.cursor = 'not-allowed';
+        challengeRecordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+            </svg>
+            <span>音檔播放中...</span>
+        `;
+    }
+}
+
+// 啟用錄音按鈕
+function enableRecordingButtons() {
+    const recordBtn = document.getElementById('recordBtn');
+    const challengeRecordBtn = document.getElementById('challengeRecordBtn');
+    
+    if (recordBtn) {
+        recordBtn.disabled = false;
+        recordBtn.style.opacity = '1';
+        recordBtn.style.cursor = 'pointer';
+        // 恢復原來的按鈕樣式
+        app.updateRecordButton();
+    }
+    
+    if (challengeRecordBtn) {
+        challengeRecordBtn.disabled = false;
+        challengeRecordBtn.style.opacity = '1';
+        challengeRecordBtn.style.cursor = 'pointer';
+        // 恢復原來的按鈕樣式
+        app.updateChallengeRecordButton();
+    }
+}
 
 
