@@ -803,6 +803,18 @@ class SpeechManager {
             });
         }
     }
+   resetTranscriptDisplay() {
+    let transcriptArea;
+    if (app.currentScreen === 'challengeScreen') {
+        transcriptArea = document.getElementById('challengeTranscriptArea');
+    } else {
+        transcriptArea = document.getElementById('transcriptArea');
+    }
+    
+    if (transcriptArea) {
+        transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "錄音" 開始語音輸入</p>';
+    }
+} 
 }
 
 // 應用狀態管理
@@ -858,15 +870,30 @@ class AppState {
         return '';
     }
     
-    resetAllStates() {
-        speechManager.stopListening();
-        speechManager.transcript = '';
-        speechManager.interimTranscript = '';
-        speechManager.comparisonResult = null;
-        this.currentIndex = 0;
-        this.currentPartIndex = 0;
-        speechManager.resetWordColors();
-    }
+resetAllStates() {
+    // 停止語音識別
+    speechManager.stopListening();
+    
+    // 清除語音相關狀態
+    speechManager.transcript = '';
+    speechManager.interimTranscript = '';
+    speechManager.comparisonResult = null;
+    
+    // 重置索引
+    this.currentIndex = 0;
+    this.currentPartIndex = 0;
+    
+    // 清理 DOM 中的回饋
+    document.getElementById('detailedFeedback')?.remove();
+    document.getElementById('sentenceFeedback')?.remove();
+    document.getElementById('wordFeedbackPopup')?.remove();
+    document.getElementById('clickHint')?.remove();
+    
+    // 重置按鈕和顯示
+    speechManager.updateRecordButton();
+    speechManager.resetWordColors();
+    speechManager.resetTranscriptDisplay();
+}
 }
 
 // 全域實例
@@ -1012,6 +1039,18 @@ function startPractice(index, from = 'list') {
 function updatePracticeScreen() {
     const item = app.getCurrentItem();
     if (!item) return;
+
+    // 清除上一個單字的識別結果
+speechManager.transcript = '';
+speechManager.interimTranscript = '';
+speechManager.comparisonResult = null;
+speechManager.resetWordColors();
+
+// 清除任何顯示的回饋內容
+document.getElementById('detailedFeedback')?.remove();
+document.getElementById('sentenceFeedback')?.remove();
+document.getElementById('wordFeedbackPopup')?.remove();
+document.getElementById('clickHint')?.remove();
     
     const practiceTitle = document.getElementById('practiceTitle');
     const practiceSubtitle = document.getElementById('practiceSubtitle');
@@ -1051,7 +1090,8 @@ function updatePracticeScreen() {
     
     updateNavigationButtons();
     speechManager.updateRecordButton();
-    speechManager.updateTranscriptDisplay();
+    // 重置轉錄顯示區域
+speechManager.updateTranscriptDisplay();
 }
 
 function updateNavigationButtons() {
@@ -1187,6 +1227,18 @@ function updateChallengeScreen() {
     
     document.getElementById('challengeProgress').textContent = 
         `題目 ${app.currentQuestionIndex + 1} / ${app.challengeQuestions.length}`;
+
+    // 清除上一題的識別結果
+speechManager.transcript = '';
+speechManager.interimTranscript = '';
+speechManager.comparisonResult = null;
+speechManager.resetWordColors();
+
+// 清除任何顯示的回饋內容
+document.getElementById('detailedFeedback')?.remove();
+document.getElementById('sentenceFeedback')?.remove();
+document.getElementById('wordFeedbackPopup')?.remove();
+document.getElementById('clickHint')?.remove();
     
     document.getElementById('challengeScore').textContent = app.currentScore || 0;
     
@@ -1217,7 +1269,9 @@ function updateChallengeScreen() {
     
     speechManager.resetWordColors();
     speechManager.updateRecordButton();
-    speechManager.updateTranscriptDisplay();
+    // 重置轉錄顯示區域
+speechManager.updateTranscriptDisplay();
+    
     
     document.getElementById('nextQuestionBtn').classList.add('hidden');
 }
