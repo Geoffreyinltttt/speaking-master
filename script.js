@@ -383,6 +383,7 @@ function processIdiomsSheet(data) {
             idiomsList.push({
                 id: `i${i}`,
                 word: row[1], // B欄: word
+                meaning: row[2] || '', // C欄: meaning (中文意思)
                 example: row[1] || '', // B欄: word (用於練習文字)
                 audio: row[3] ? `audio/${row[3]}` : '' // D欄: audio (加上路徑前綴)
             });
