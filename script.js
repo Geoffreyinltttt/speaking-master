@@ -1,3 +1,51 @@
+// 手機調試顯示函數 - 加在程式碼最上方
+let debugMessages = [];
+function mobileDebug(message) {
+    const timestamp = new Date().toLocaleTimeString();
+    const debugMessage = `[${timestamp}] ${message}`;
+    debugMessages.push(debugMessage);
+    
+    // 只保留最近20條訊息
+    if (debugMessages.length > 20) {
+        debugMessages.shift();
+    }
+    
+    // 更新或創建調試視窗
+    let debugWindow = document.getElementById('mobileDebugWindow');
+    if (!debugWindow) {
+        debugWindow = document.createElement('div');
+        debugWindow.id = 'mobileDebugWindow';
+        debugWindow.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            max-height: 200px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            z-index: 10000;
+            overflow-y: auto;
+            border: 1px solid #333;
+        `;
+        document.body.appendChild(debugWindow);
+        
+        // 雙擊關閉調試視窗
+        debugWindow.addEventListener('dblclick', () => {
+            debugWindow.style.display = debugWindow.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+    
+    debugWindow.innerHTML = debugMessages.join('<br>');
+    debugWindow.scrollTop = debugWindow.scrollHeight;
+    
+    // 同時輸出到 console（如果有的話）
+    console.log(debugMessage);
+}
+
 // 練習內容數據 - 從 Excel 載入
 let vocabulary = [];
 let idioms = [];
@@ -461,46 +509,42 @@ class AppState {
             this.recognition.webkitInterimResults = true;
         }
 
-        this.recognition.onstart = () => {
-            console.log('語音識別已啟動');
-            this.updateRecordButtonByScreen();
-            this.updateTranscriptDisplay(); // 立即更新顯示
-        };
+this.recognition.onstart = () => {
+    mobileDebug('語音識別已啟動');
+    this.updateRecordButtonByScreen();
+    this.updateTranscriptDisplay(); // 立即更新顯示
+};
 
-        this.recognition.onresult = (event) => {
-            let finalTranscript = '';
-            let interim = '';
-            
-            console.log('語音識別結果事件觸發，結果數量:', event.results.length);
-            
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const result = event.results[i][0];
-                console.log(`結果 ${i}: "${result.transcript}" (信心度: ${result.confidence}, 是否最終: ${event.results[i].isFinal})`);
-                
-                if (event.results[i].isFinal) {
-                    if (result.confidence > 0.3) {
-                        finalTranscript += result.transcript;
-                    }
-                } else {
-                    interim += result.transcript;
-                }
+this.recognition.onresult = (event) => {
+    let finalTranscript = '';
+    let interim = '';
+    
+    mobileDebug('語音識別結果事件觸發，結果數量: ' + event.results.length);
+    
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const result = event.results[i][0];
+        mobileDebug(`結果 ${i}: "${result.transcript}" (信心度: ${result.confidence}, 是否最終: ${event.results[i].isFinal})`);
+        
+        if (event.results[i].isFinal) {
+            if (result.confidence > 0.3) {
+                finalTranscript += result.transcript;
             }
-            
-            this.interimTranscript = interim;
-            this.transcript += finalTranscript;
-            
-            console.log('當前轉錄狀態:', {
-                final: this.transcript,
-                interim: this.interimTranscript,
-                isListening: this.isListening
-            });
-            
-            // 即時更新文字顏色
-            this.updateWordColors();
-            
-            // 即時更新轉錄顯示
-            this.updateTranscriptDisplay();
-        };
+        } else {
+            interim += result.transcript;
+        }
+    }
+    
+    this.interimTranscript = interim;
+    this.transcript += finalTranscript;
+    
+    mobileDebug('當前轉錄狀態 - final: "' + this.transcript + '", interim: "' + this.interimTranscript + '"');
+    
+    // 即時更新文字顏色
+    this.updateWordColors();
+    
+    // 即時更新轉錄顯示
+    this.updateTranscriptDisplay();
+};
 
         this.recognition.onspeechstart = () => {
             console.log('檢測到語音開始');
@@ -518,78 +562,96 @@ class AppState {
             console.log('音頻捕獲結束');
         };
         
-        this.recognition.onerror = (event) => {
-            let errorMsg = '';
-            switch(event.error) {
-                case 'no-speech':
-                    errorMsg = '未偵測到語音，請再試一次。';
-                    break;
-                case 'audio-capture':
-                    errorMsg = '無法取用麥克風。請檢查權限設定。';
-                    break;
-                case 'not-allowed':
-                    errorMsg = '麥克風權限被拒絕。';
-                    break;
-                default:
-                    errorMsg = `發生錯誤: ${event.error}`;
-            }
-            console.error(errorMsg);
-            this.stopListening();
-        };
+this.recognition.onerror = (event) => {
+    mobileDebug('語音識別錯誤: ' + event.error);
+    let errorMsg = '';
+    switch(event.error) {
+        case 'no-speech':
+            errorMsg = '未偵測到語音，請再試一次。';
+            break;
+        case 'audio-capture':
+            errorMsg = '無法取用麥克風。請檢查權限設定。';
+            break;
+        case 'not-allowed':
+            errorMsg = '麥克風權限被拒絕。';
+            break;
+        default:
+            errorMsg = `發生錯誤: ${event.error}`;
+    }
+    mobileDebug('錯誤訊息: ' + errorMsg);
+    this.stopListening();
+};
         
-        this.recognition.onend = () => {
-            this.isListening = false;
-            this.interimTranscript = '';
-            this.updateRecordButtonByScreen();
-            if (this.transcript) {
-                this.processTranscript();
-            }
-        };
+this.recognition.onend = () => {
+    mobileDebug('語音識別結束');
+    this.isListening = false;
+    this.interimTranscript = '';
+    this.updateRecordButtonByScreen();
+    if (this.transcript) {
+        mobileDebug('處理轉錄結果: ' + this.transcript);
+        this.processTranscript();
+    }
+};
     }
     
-    startListening() {
-        // 檢查是否被禁用
-        if (window.speechDisabled) {
-            alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
-            return;
-        }
-        
-        if (!this.recognition || this.isListening) return;
-        
-        // 確保所有音頻播放都已停止（加上條件檢查）
-        if (document.readyState === 'complete') {
-            this.ensureAudioStopped();
-        }
-        
-        this.transcript = '';
-        this.interimTranscript = '';
-        this.comparisonResult = null;
-        this.resetWordColors();
-        
-        // 增加延遲確保音頻設備完全釋放
-        setTimeout(() => {
-            try {
-                this.recognition.start();
-                this.isListening = true;
-                this.updateRecordButtonByScreen();
-            } catch (e) {
-                console.error('語音辨識無法啟動:', e);
-                // 如果失敗，再試一次
-                setTimeout(() => {
-                    try {
-                        this.recognition.start();
-                        this.isListening = true;
-                        this.updateRecordButtonByScreen();
-                    } catch (e2) {
-                        console.error('語音辨識第二次嘗試也失敗:', e2);
-                        alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
-                    }
-                }, 1000);
-            }
-        }, 200);
+startListening() {
+    mobileDebug('=== startListening called ===');
+    mobileDebug('speechDisabled: ' + window.speechDisabled);
+    mobileDebug('recognition exists: ' + !!this.recognition);
+    mobileDebug('isListening: ' + this.isListening);
+    
+    // 檢查是否被禁用
+    if (window.speechDisabled) {
+        alert('您的瀏覽器不支援語音識別功能，請嘗試使用 Chrome 或 Edge 瀏覽器。');
+        return;
     }
+    
+    if (!this.recognition || this.isListening) {
+        mobileDebug('早期返回 - recognition不存在或已在聆聽');
+        return;
+    }
+    
+    // 確保所有音頻播放都已停止
+    if (document.readyState === 'complete') {
+        mobileDebug('呼叫 ensureAudioStopped');
+        this.ensureAudioStopped();
+    }
+    
+    this.transcript = '';
+    this.interimTranscript = '';
+    this.comparisonResult = null;
+    this.resetWordColors();
+    
+    mobileDebug('準備啟動語音識別...');
+    
+    // 增加延遲確保音頻設備完全釋放
+    setTimeout(() => {
+        mobileDebug('延遲後嘗試啟動語音識別');
+        try {
+            this.recognition.start();
+            this.isListening = true;
+            this.updateRecordButtonByScreen();
+            mobileDebug('語音識別啟動成功');
+        } catch (e) {
+            mobileDebug('語音辨識無法啟動: ' + e.message);
+            // 如果失敗，再試一次
+            setTimeout(() => {
+                mobileDebug('第二次嘗試啟動語音識別');
+                try {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.updateRecordButtonByScreen();
+                    mobileDebug('語音識別第二次啟動成功');
+                } catch (e2) {
+                    mobileDebug('語音辨識第二次嘗試也失敗: ' + e2.message);
+                    alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
+                }
+            }, 1000);
+        }
+    }, 500);
+}
 
-// 確保所有音頻播放停止
+
 // 確保所有音頻播放停止
 ensureAudioStopped() {
     // 停止所有 HTML audio 元素
@@ -1561,13 +1623,13 @@ function speakText(text, audioFile = null) {
         const audio = new Audio(audioFile);
         
         // 確保音頻完全停止後才允許錄音
-        audio.onended = function() {
-            console.log('Audio playback ended, enabling recording buttons');
-            setTimeout(() => {
-                enableRecordingButtons();
-                console.log('Recording buttons enabled');
-            }, 300);
-        };
+audio.onended = function() {
+    mobileDebug('Audio playback ended, enabling recording buttons');
+    setTimeout(() => {
+        enableRecordingButtons();
+        mobileDebug('Recording buttons enabled after timeout');
+    }, 300);
+};
         
         audio.onerror = function(e) {
             console.warn(`音檔載入失敗: ${audioFile}`, e);
@@ -2209,12 +2271,15 @@ function disableRecordingButtons() {
     }
 }
 
-// 啟用錄音按鈕
+// 啟用錄音按鈕 - 手機調試版
 function enableRecordingButtons() {
+    mobileDebug('=== enableRecordingButtons called ===');
+    
     const recordBtn = document.getElementById('recordBtn');
     const challengeRecordBtn = document.getElementById('challengeRecordBtn');
     
     if (recordBtn) {
+        mobileDebug('Enabling recordBtn');
         recordBtn.disabled = false;
         recordBtn.style.opacity = '1';
         recordBtn.style.cursor = 'pointer';
@@ -2223,13 +2288,17 @@ function enableRecordingButtons() {
     }
     
     if (challengeRecordBtn) {
+        mobileDebug('Enabling challengeRecordBtn');
         challengeRecordBtn.disabled = false;
         challengeRecordBtn.style.opacity = '1';
         challengeRecordBtn.style.cursor = 'pointer';
         // 恢復原來的按鈕樣式
         app.updateChallengeRecordButton();
     }
+    
+    mobileDebug('=== enableRecordingButtons completed ===');
 }
+
 
 
 
