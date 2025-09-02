@@ -772,11 +772,12 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
-    AudioManager.stop();
-    
-    if (app.isListening) {
-        app.stopListening();
-    }
+    // 新增：清理音頻物件
+    document.querySelectorAll('audio').forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.remove();
+    });
     
     document.getElementById('detailedFeedback')?.remove();
     
@@ -955,3 +956,4 @@ window.toggleRecording = toggleRecording;
 window.speakText = speakText;
 window.dismissWarning = dismissWarning;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
