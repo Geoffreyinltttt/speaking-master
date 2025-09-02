@@ -438,10 +438,35 @@ class AppState {
     }
         
 initSpeechRecognition() {
-    // 檢查瀏覽器相容性
-    if (!checkBrowserCompatibility()) {
+    // 如果已有語音識別器，先清理
+    if (this.recognition) {
+        try {
+            this.recognition.stop();
+            this.recognition = null;
+        } catch (e) {
+            console.log('清理舊的語音識別器');
+        }
+    }
+    
+    // 檢查基本支援（不呼叫 checkBrowserCompatibility）
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
         console.error('瀏覽器不支持語音識別');
         return;
+    }
+        
+    this.recognition = new SpeechRecognition();
+    this.recognition.continuous = true;
+    this.recognition.interimResults = true;
+    this.recognition.lang = 'en-US';
+
+    // 優化語音識別設定，讓反應更即時
+    this.recognition.maxAlternatives = 1;
+    
+    // 對於 Chrome/Edge，設定更積極的即時結果
+    if (this.recognition.webkitSpeechRecognition) {
+        this.recognition.webkitContinuous = true;
+        this.recognition.webkitInterimResults = true;
     }
     
     // 如果已有語音識別器，先清理
@@ -1416,7 +1441,7 @@ getCurrentList() {
         });
     }
 
-    // 重置轉錄顯示區域
+// 重置轉錄顯示區域
     resetTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
         if (transcriptArea) {
@@ -1451,9 +1476,6 @@ getCurrentList() {
         
         // 重置轉錄顯示
         this.resetTranscriptDisplay();
-
-		// 重新初始化語音識別器
-    	this.initSpeechRecognition();
     }
 
 } // ← AppState 類別的結束括號
@@ -1508,7 +1530,7 @@ function speakText(text, audioFile = null) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
         
-// 確保音頻完全停止後才允許錄音
+        // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
             console.log('Audio playback ended, enabling recording after delay');
             // 重新初始化語音識別器
@@ -1518,12 +1540,12 @@ function speakText(text, audioFile = null) {
             }, 800);
         };
         
-audio.onerror = function(e) {
+        audio.onerror = function(e) {
             console.warn(`❌ 音檔載入失敗: ${audioFile}`, e);
             alert('音檔無法播放，請檢查檔案路徑');
         };
         
- audio.play().then(() => {
+        audio.play().then(() => {
             console.log('🎵 音檔播放成功');
         }).catch(error => {
             console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
@@ -1571,61 +1593,60 @@ function renderList() {
     const allItemsList = document.getElementById('allItemsList');
     const listTitle = document.getElementById('listTitle');
 
-    
-// 更新標題
-const titleMap = {
-    'vocabulary': '詞彙列表',
-    'passage': '課文列表'
-};
-listTitle.textContent = titleMap[app.contentType] || '列表';
+    // 更新標題
+    const titleMap = {
+        'vocabulary': '詞彙列表',
+        'passage': '課文列表'
+    };
+    listTitle.textContent = titleMap[app.contentType] || '列表';
 
-// 取得資料
-let allItems = [];
-if (app.contentType === 'vocabulary') {
-    // 合併單字和片語
-    allItems = [...vocabulary, ...idioms];
-} else {
-    allItems = passages;
-}
-    
-// 渲染 iOS 風格列表
-allItemsList.innerHTML = allItems.map((item, index) => {
-    const isLast = index === allItems.length - 1;
-    
-    if ('word' in item) {
-        // 單字項目 - 顯示單字和意思
-        return `
-<button onclick="startPractice(${index}, 'list')" 
-        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <div style="flex: 1; min-width: 0;">
-        <p class="text-white text-body text-lg truncate font-semibold">${item.word}</p>
-        ${item.meaning ? `<p class="text-slate-400 text-sm truncate mt-1">${item.meaning}</p>` : ''}
-    </div>
-    <div style="flex-shrink: 0; margin-left: 16px;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-    </div>
-</button>
-`;
+    // 取得資料
+    let allItems = [];
+    if (app.contentType === 'vocabulary') {
+        // 合併單字和片語
+        allItems = [...vocabulary, ...idioms];
     } else {
-        // 課文項目 - 保持原有格式
-        const displayText = item.title;
-        return `
-<button onclick="startPractice(${index}, 'list')" 
-        class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <div style="flex: 1; min-width: 0;">
-        <p class="text-white text-body text-lg truncate">${displayText}</p>
-    </div>
-    <div style="flex-shrink: 0; margin-left: 16px;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-    </div>
-</button>
-`;
+        allItems = passages;
     }
-}).join('');
+    
+    // 渲染 iOS 風格列表
+    allItemsList.innerHTML = allItems.map((item, index) => {
+        const isLast = index === allItems.length - 1;
+        
+        if ('word' in item) {
+            // 單字項目 - 顯示單字和意思
+            return `
+    <button onclick="startPractice(${index}, 'list')" 
+            class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="flex: 1; min-width: 0;">
+            <p class="text-white text-body text-lg truncate font-semibold">${item.word}</p>
+            ${item.meaning ? `<p class="text-slate-400 text-sm truncate mt-1">${item.meaning}</p>` : ''}
+        </div>
+        <div style="flex-shrink: 0; margin-left: 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </button>
+    `;
+        } else {
+            // 課文項目 - 保持原有格式
+            const displayText = item.title;
+            return `
+    <button onclick="startPractice(${index}, 'list')" 
+            class="list-item p-5 ${!isLast ? 'border-b border-slate-700/20' : ''}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="flex: 1; min-width: 0;">
+            <p class="text-white text-body text-lg truncate">${displayText}</p>
+        </div>
+        <div style="flex-shrink: 0; margin-left: 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </button>
+    `;
+        }
+    }).join('');
 }
 
 // 開始練習
@@ -1641,13 +1662,10 @@ function startPractice(index, from = 'list') {
     app.interimTranscript = '';
     app.comparisonResult = null;
     
-// 停止任何進行中的語音識別
+    // 停止任何進行中的語音識別
     if (app.isListening) {
         app.stopListening();
     }
-    
-    // 重新初始化語音識別器，確保每個新練習都有乾淨的狀態
-    app.initSpeechRecognition();
     
     showScreen('practiceScreen');
     updatePracticeScreen();
@@ -1685,15 +1703,14 @@ function updatePracticeScreen() {
             practiceTitle.innerHTML = wordsHtml;
         }
     } else {
-    // 單字或片語
-    const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
-    practiceTitle.innerHTML = `
-        <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>
-        ${meaningDisplay}
-    `;
-}
+        // 單字或片語
+        const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
+        practiceTitle.innerHTML = `
+            <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${item.example}</span>
+            ${meaningDisplay}
+        `;
+    }
 
-    
     // 更新副標題（僅課文有多句）
     if ('sentences' in item && item.sentences.length > 1) {
         practiceSubtitle.textContent = `句子 ${app.currentPartIndex + 1} / ${item.sentences.length}`;
@@ -1707,7 +1724,7 @@ function updatePracticeScreen() {
     // 更新導航按鈕狀態
     updateNavigationButtons();
     
-// 重置語音相關狀態
+    // 重置語音相關狀態
     app.transcript = '';
     app.comparisonResult = null;
     app.resetWordColors();
@@ -1828,8 +1845,6 @@ function startChallenge() {
     updatePracticeScreen();
 }
 
-
-
 // 錄音控制
 function toggleRecording() {
     if (app.isListening) {
@@ -1874,26 +1889,25 @@ document.addEventListener('DOMContentLoaded', function() {
         showScreen('contentTypeSelection');
     });
     
-document.getElementById('challengeMode').addEventListener('click', () => {
-    if (!dataLoaded) {
-        alert('數據尚未載入完成，請稍候');
-        return;
-    }
-    startChallenge();
-});
+    document.getElementById('challengeMode').addEventListener('click', () => {
+        if (!dataLoaded) {
+            alert('數據尚未載入完成，請稍候');
+            return;
+        }
+        startChallenge();
+    });
     
     // 內容類型選擇
-document.getElementById('vocabularyType').addEventListener('click', () => {
-    app.resetAllStates();
-    app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
-    if (app.mode === 'practice') {
-        showScreen('listView');
-        renderList();
-    } else {
-        startChallenge(); // 挑戰模式不分類型
-    }
-});
-
+    document.getElementById('vocabularyType').addEventListener('click', () => {
+        app.resetAllStates();
+        app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
+        if (app.mode === 'practice') {
+            showScreen('listView');
+            renderList();
+        } else {
+            startChallenge(); // 挑戰模式不分類型
+        }
+    });
 
     document.getElementById('passageType').addEventListener('click', () => {
         app.resetAllStates();
