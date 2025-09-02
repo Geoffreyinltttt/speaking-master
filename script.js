@@ -624,40 +624,59 @@ startListening() {
     
     mobileDebug('準備啟動語音識別...');
     
-    // 增加延遲確保音頻設備完全釋放
+    // 增加更長的延遲確保音頻設備完全釋放
     setTimeout(() => {
-        mobileDebug('延遲後嘗試啟動語音識別');
-        try {
-            this.recognition.start();
-            this.isListening = true;
-            this.updateRecordButtonByScreen();
-            mobileDebug('語音識別啟動成功');
-        } catch (e) {
-            mobileDebug('語音辨識無法啟動: ' + e.message);
-            // 如果失敗，再試一次
-            setTimeout(() => {
-                mobileDebug('第二次嘗試啟動語音識別');
-                try {
-                    this.recognition.start();
-                    this.isListening = true;
-                    this.updateRecordButtonByScreen();
-                    mobileDebug('語音識別第二次啟動成功');
-                } catch (e2) {
-                    mobileDebug('語音辨識第二次嘗試也失敗: ' + e2.message);
-                    alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
-                }
-            }, 1000);
+        mobileDebug('第一次延遲後嘗試啟動語音識別');
+        
+        // 再次確保語音識別已停止
+        if (this.recognition) {
+            try {
+                this.recognition.abort();
+                this.isListening = false;
+                mobileDebug('再次確保語音識別已停止');
+            } catch (e) {
+                mobileDebug('停止語音識別時發生錯誤: ' + e.message);
+            }
         }
-    }, 500);
+        
+        // 再等一下才啟動
+        setTimeout(() => {
+            mobileDebug('第二次延遲後嘗試啟動語音識別');
+            try {
+                this.recognition.start();
+                this.isListening = true;
+                this.updateRecordButtonByScreen();
+                mobileDebug('語音識別啟動成功');
+            } catch (e) {
+                mobileDebug('語音辨識無法啟動: ' + e.message);
+                // 如果失敗，再試一次
+                setTimeout(() => {
+                    mobileDebug('第三次嘗試啟動語音識別');
+                    try {
+                        this.recognition.start();
+                        this.isListening = true;
+                        this.updateRecordButtonByScreen();
+                        mobileDebug('語音識別第三次啟動成功');
+                    } catch (e2) {
+                        mobileDebug('語音辨識第三次嘗試也失敗: ' + e2.message);
+                        alert('語音識別啟動失敗，請確認沒有其他應用程式正在使用麥克風，然後重新整理頁面再試。');
+                    }
+                }, 1000);
+            }
+        }, 800); // 第二次延遲
+    }, 1200); // 第一次延遲增加到1200ms
 }
 
 
 // 確保所有音頻播放停止
 ensureAudioStopped() {
+    mobileDebug('執行 ensureAudioStopped');
+    
     // 停止所有 HTML audio 元素
     const audioElements = document.querySelectorAll('audio');
     audioElements.forEach(audio => {
         if (!audio.paused) {
+            mobileDebug('停止音頻播放: ' + audio.src);
             audio.pause();
             audio.currentTime = 0;
         }
@@ -665,10 +684,18 @@ ensureAudioStopped() {
         audio.load();
     });
     
-    // 移除 TTS 相關代碼
-    // 不再需要 speechSynthesis.cancel()
+    // 確保語音識別完全停止
+    if (this.recognition) {
+        try {
+            mobileDebug('強制停止現有語音識別');
+            this.recognition.abort();
+            this.isListening = false;
+        } catch (e) {
+            mobileDebug('停止語音識別時發生錯誤: ' + e.message);
+        }
+    }
     
-    console.log('All audio playback stopped and resources released');
+    mobileDebug('ensureAudioStopped 完成');
 }
     
     stopListening() {
@@ -1623,12 +1650,12 @@ function speakText(text, audioFile = null) {
         const audio = new Audio(audioFile);
         
         // 確保音頻完全停止後才允許錄音
-audio.onended = function() {
+        audio.onended = function() {
     mobileDebug('Audio playback ended, enabling recording buttons');
     setTimeout(() => {
         enableRecordingButtons();
         mobileDebug('Recording buttons enabled after timeout');
-    }, 300);
+    }, 800);
 };
         
         audio.onerror = function(e) {
@@ -2298,6 +2325,7 @@ function enableRecordingButtons() {
     
     mobileDebug('=== enableRecordingButtons completed ===');
 }
+
 
 
 
