@@ -1508,11 +1508,6 @@ function speakText(text, audioFile = null) {
         // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
             console.log('Audio playback ended, enabling recording after delay');
-            // 重新初始化語音識別器
-            setTimeout(() => {
-                console.log('重新初始化語音識別器');
-                app.initSpeechRecognition();
-            }, 800);
         };
         
         audio.onerror = function(e) {
