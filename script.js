@@ -599,43 +599,48 @@ initSpeechRecognition() {
 
     
 startListening() {
-    // 如果沒有識別器，創建新的
-    if (!this.recognition) {
-        this.initSpeechRecognition();
-        // 等待初始化完成
-        setTimeout(() => {
-            this.startListening();
-        }, 500);
+    // 如果正在播放音頻，等待
+    if (window.isPlayingAudio) {
+        alert('請等待音檔播放完畢');
         return;
     }
     
+    // 如果已在監聽，直接返回
     if (this.isListening) return;
     
-    // 清空舊資料
+    // 重置識別器的技巧：先創建新的，再銷毀舊的
+    const oldRecognition = this.recognition;
+    
+    // 創建新的識別器
+    this.initSpeechRecognition();
+    
+    // 銷毀舊的（如果存在）
+    if (oldRecognition) {
+        try {
+            oldRecognition.stop();
+            oldRecognition.abort();
+        } catch(e) {}
+    }
+    
+    // 清空轉錄文字
     this.transcript = '';
     this.interimTranscript = '';
+    this.updateTranscriptDisplay();
     
-    // 直接嘗試啟動
-    try {
-        this.recognition.start();
-        this.isListening = true;
-        this.updateRecordButton();
-    } catch (e) {
-        // 如果失敗，重新初始化後再試
-        this.recognition = null;
-        this.initSpeechRecognition();
-        setTimeout(() => {
-            try {
-                this.recognition.start();
-                this.isListening = true;
-                this.updateRecordButton();
-            } catch (e2) {
-                alert('無法啟動語音識別，請重新整理頁面');
-            }
-        }, 500);
-    }
+    // 給一點延遲讓系統準備
+    setTimeout(() => {
+        try {
+            this.recognition.start();
+            this.isListening = true;
+            this.updateRecordButton();
+        } catch (e) {
+            console.error('啟動語音識別失敗:', e);
+            alert('語音識別啟動失敗，請再試一次');
+            this.isListening = false;
+            this.updateRecordButton();
+        }
+    }, 100);
 }
-
 
 // 確保所有音頻播放停止
 ensureAudioStopped() {
@@ -669,32 +674,28 @@ stopListening() {
 }
 
     
-    updateRecordButton() {
-        const recordBtn = document.getElementById('recordBtn');
-        if (!recordBtn) return;
-        
-        // 強制移除所有現有的樣式類別
-        recordBtn.removeAttribute('class');
-        recordBtn.removeAttribute('style');
-        
-        if (this.isListening) {
-            recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
-                </svg>
-                <span>停止錄音</span>
-            `;
-            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
-        } else {
-            recordBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
-                </svg>
-                <span>開始錄音</span>
-            `;
-            recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
-        }
+updateRecordButton() {
+    const button = document.getElementById('recordButton');
+    const icon = button.querySelector('svg');
+    const text = button.querySelector('span');
+    
+    if (window.isPlayingAudio) {
+        // 播放音頻時的狀態
+        button.className = 'record-button bg-gray-400';
+        button.disabled = true;
+        text.textContent = '播放中...';
+    } else if (this.isListening) {
+        // 錄音中的狀態
+        button.className = 'record-button recording';
+        button.disabled = false;
+        text.textContent = '停止錄音';
+    } else {
+        // 待機狀態
+        button.className = 'record-button';
+        button.disabled = false;
+        text.textContent = '開始錄音';
     }
+}
     
     updateTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
@@ -1525,37 +1526,39 @@ function showScreen(screenId) {
 }
 
 function speakText(text, audioFile = null) {
-    // 先停止並重置所有語音識別
-    if (app.recognition) {
-        try {
-            app.recognition.stop();
-            app.recognition.abort();
-        } catch(e) {}
-        app.recognition = null;
-        app.isListening = false;
+    // 標記正在播放音頻
+    window.isPlayingAudio = true;
+    
+    // 停止但不銷毀語音識別
+    if (app.isListening) {
+        app.stopListening();
     }
     
     if (audioFile && audioFile.trim()) {
         const audio = new Audio(audioFile);
         audio.volume = 0.5;
         
-        // 播放結束後，等待一秒再重新初始化語音識別
+        // 播放結束後標記
         audio.onended = () => {
-            setTimeout(() => {
-                app.initSpeechRecognition();
-            }, 1000);
+            window.isPlayingAudio = false;
+            // 更新按鈕狀態
+            app.updateRecordButton();
+        };
+        
+        // 播放出錯也要重置標記
+        audio.onerror = () => {
+            window.isPlayingAudio = false;
+            app.updateRecordButton();
         };
         
         audio.play().catch(() => {
+            window.isPlayingAudio = false;
             alert('音檔無法播放');
-            // 如果播放失敗也要重新初始化
-            setTimeout(() => {
-                app.initSpeechRecognition();
-            }, 1000);
         });
+    } else {
+        window.isPlayingAudio = false;
     }
 }
-
 
 // 列表渲染功能
 function renderList() {
