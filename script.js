@@ -1451,6 +1451,9 @@ getCurrentList() {
         
         // 重置轉錄顯示
         this.resetTranscriptDisplay();
+
+		// 重新初始化語音識別器
+    	this.initSpeechRecognition();
     }
 
 } // ← AppState 類別的結束括號
@@ -1638,10 +1641,13 @@ function startPractice(index, from = 'list') {
     app.interimTranscript = '';
     app.comparisonResult = null;
     
-    // 停止任何進行中的語音識別
+// 停止任何進行中的語音識別
     if (app.isListening) {
         app.stopListening();
     }
+    
+    // 重新初始化語音識別器，確保每個新練習都有乾淨的狀態
+    app.initSpeechRecognition();
     
     showScreen('practiceScreen');
     updatePracticeScreen();
@@ -1701,12 +1707,15 @@ function updatePracticeScreen() {
     // 更新導航按鈕狀態
     updateNavigationButtons();
     
-    // 重置語音相關狀態
+// 重置語音相關狀態
     app.transcript = '';
     app.comparisonResult = null;
     app.resetWordColors();
     app.updateRecordButton();
     app.resetTranscriptDisplay();
+    
+    // 重新初始化語音識別器，確保狀態乾淨
+    app.initSpeechRecognition();
     
     // 重新綁定點擊事件
     setTimeout(() => {
