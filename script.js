@@ -427,9 +427,8 @@ class AppState {
         this.challengeQuestions = [];
         this.challengeAnswers = [];
         this.currentQuestionIndex = 0;
-		this.challengeType = null; // 'vocabulary' | 'passage' | 'mixed'
-    	this.challengeAnswers = [];
-    	this.currentScore = 0;
+        this.challengeType = null; // 'vocabulary' | 'passage' | 'mixed'
+        this.currentScore = 0;
         
         // 語音識別相關
         this.recognition = null;
@@ -650,13 +649,55 @@ class AppState {
         }
     }
     
-    updateTranscriptDisplay() {
-        const transcriptArea = document.getElementById('transcriptArea');
-        if (!transcriptArea) {
-            console.log('找不到轉錄顯示區域');
-            return;
-        }
-        
+
+updateChallengeRecordButton() {
+    const recordBtn = document.getElementById('challengeRecordBtn');
+    if (!recordBtn) return;
+    
+    // 強制移除所有現有的樣式類別
+    recordBtn.removeAttribute('class');
+    recordBtn.removeAttribute('style');
+    
+    if (this.isListening) {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+            </svg>
+            <span>停止錄音</span>
+        `;
+        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-2xl shadow-xl transition-all duration-300');
+    } else {
+        recordBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+            </svg>
+            <span>開始錄音</span>
+        `;
+        recordBtn.setAttribute('class', 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105');
+    }
+}
+
+// 重置挑戰模式轉錄顯示
+resetChallengeTranscriptDisplay() {
+    const transcriptArea = document.getElementById('challengeTranscriptArea');
+    if (transcriptArea) {
+        transcriptArea.innerHTML = '<p class="italic text-slate-400 text-center">點擊 "開始錄音" 開始語音輸入</p>';
+    }
+}
+
+updateTranscriptDisplay() {
+    // 根據當前螢幕選擇對應的轉錄區域
+    let transcriptArea;
+    if (this.currentScreen === 'challengeScreen') {
+        transcriptArea = document.getElementById('challengeTranscriptArea');
+    } else {
+        transcriptArea = document.getElementById('transcriptArea');
+    }
+    
+    if (!transcriptArea) {
+        console.log('找不到轉錄顯示區域');
+        return;
+    }        
         console.log('更新轉錄顯示:', {
             isListening: this.isListening,
             transcript: this.transcript,
@@ -757,11 +798,22 @@ class AppState {
             }
         }
         
-        // 如果是挑戰模式，顯示下一題按鈕
-        if (this.currentScreen === 'challengeScreen') {
-            document.getElementById('nextBtn').classList.remove('hidden');
-        }
-    }
+// 如果是挑戰模式，顯示下一題按鈕並記錄答案
+if (this.currentScreen === 'challengeScreen') {
+    document.getElementById('nextQuestionBtn').classList.remove('hidden');
+    
+    // 記錄挑戰答案
+    const currentQuestion = this.challengeQuestions[this.currentQuestionIndex];
+    this.challengeAnswers[this.currentQuestionIndex] = {
+        question: currentQuestion.practiceText,
+        userAnswer: this.transcript,
+        score: this.comparisonResult ? this.comparisonResult.score : 0
+    };
+    
+    // 更新當前分數
+    this.currentScore = Math.round(this.challengeAnswers.reduce((sum, answer) => sum + (answer.score || 0), 0) / this.challengeAnswers.length);
+}
+}
 
     // 顯示句子回饋（簡化版，自動顯示在上方）
     showSentenceFeedback(details) {
@@ -1904,12 +1956,12 @@ function updateChallengeScreen() {
         `;
     }
     
-    // 重置錄音狀態
-    app.transcript = '';
-    app.comparisonResult = null;
-    app.resetWordColors();
-    app.updateRecordButton();
-    app.resetTranscriptDisplay();
+// 重置錄音狀態
+app.transcript = '';
+app.comparisonResult = null;
+app.resetWordColors();
+app.updateChallengeRecordButton();
+app.resetChallengeTranscriptDisplay();
     
     // 隱藏下一題按鈕
     document.getElementById('nextQuestionBtn').classList.add('hidden');
