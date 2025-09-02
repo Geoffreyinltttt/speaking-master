@@ -396,25 +396,29 @@ class AppState {
     }
     
     updateRecordButton() {
-        const button = document.getElementById('recordButton');
-        if (!button) return;
-        
-        const text = button.querySelector('span');
-        
-        if (window.isPlayingAudio) {
-            button.className = 'record-button bg-gray-400';
-            button.disabled = true;
-            text.textContent = '播放中...';
-        } else if (this.isListening) {
-            button.className = 'record-button recording';
-            button.disabled = false;
-            text.textContent = '停止錄音';
-        } else {
-            button.className = 'record-button';
-            button.disabled = false;
-            text.textContent = '開始錄音';
-        }
+    const button = document.getElementById('recordBtn'); // 改成 recordBtn
+    if (!button) return;
+    
+    const text = button.querySelector('span');
+    if (!text) { // 加入檢查，因為按鈕內可能沒有 span
+        console.warn('找不到按鈕內的文字元素');
+        return;
     }
+    
+    if (window.isPlayingAudio) {
+        button.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gray-400 text-white font-medium rounded-2xl shadow-xl';
+        button.disabled = true;
+        text.textContent = '播放中...';
+    } else if (this.isListening) {
+        button.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-red-500 text-white font-medium rounded-2xl shadow-xl animate-pulse';
+        button.disabled = false;
+        text.textContent = '停止錄音';
+    } else {
+        button.className = 'inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105';
+        button.disabled = false;
+        text.textContent = '開始錄音';
+    }
+}
     
     updateTranscriptDisplay() {
         const transcriptArea = document.getElementById('transcriptArea');
