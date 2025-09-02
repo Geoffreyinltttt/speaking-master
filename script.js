@@ -623,6 +623,15 @@ startListening() {
     this.resetWordColors();
     
     mobileDebug('準備啟動語音識別...');
+    // 額外檢查音頻設備狀態
+if (navigator.mediaDevices) {
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        mobileDebug('可用音頻輸入設備: ' + audioInputs.length);
+    }).catch(e => {
+        mobileDebug('檢查音頻設備失敗: ' + e.message);
+    });
+}
     
     // 增加更長的延遲確保音頻設備完全釋放
     setTimeout(() => {
@@ -664,7 +673,7 @@ startListening() {
                 }, 1000);
             }
         }, 800); // 第二次延遲
-    }, 1200); // 第一次延遲增加到1200ms
+    }, 2000); 
 }
 
 
@@ -674,15 +683,33 @@ ensureAudioStopped() {
     
     // 停止所有 HTML audio 元素
     const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
+    audioElements.forEach((audio, index) => {
         if (!audio.paused) {
-            mobileDebug('停止音頻播放: ' + audio.src);
+            mobileDebug(`停止音頻播放 ${index}: ${audio.src}`);
             audio.pause();
             audio.currentTime = 0;
         }
-        // 強制釋放音頻資源
-        audio.load();
+        // 徹底移除音頻元素
+        try {
+            audio.remove();
+            mobileDebug(`移除音頻元素 ${index}`);
+        } catch (e) {
+            mobileDebug(`移除音頻元素失敗: ${e.message}`);
+        }
     });
+    
+    // 停止 Web Audio API
+    if (window.AudioContext || window.webkitAudioContext) {
+        try {
+            if (window.currentAudioContext) {
+                window.currentAudioContext.close();
+                window.currentAudioContext = null;
+                mobileDebug('關閉 AudioContext');
+            }
+        } catch (e) {
+            mobileDebug('關閉 AudioContext 失敗: ' + e.message);
+        }
+    }
     
     // 確保語音識別完全停止
     if (this.recognition) {
@@ -690,9 +717,25 @@ ensureAudioStopped() {
             mobileDebug('強制停止現有語音識別');
             this.recognition.abort();
             this.isListening = false;
+            
+            // 等待一下確保完全停止
+            setTimeout(() => {
+                if (this.recognition) {
+                    try {
+                        this.recognition.stop();
+                    } catch (e) {
+                        mobileDebug('二次停止語音識別: ' + e.message);
+                    }
+                }
+            }, 100);
         } catch (e) {
             mobileDebug('停止語音識別時發生錯誤: ' + e.message);
         }
+    }
+    
+    // 強制釋放麥克風權限
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        mobileDebug('嘗試釋放媒體設備');
     }
     
     mobileDebug('ensureAudioStopped 完成');
@@ -1632,50 +1675,80 @@ function showScreen(screenId) {
 }
 
 function speakText(text, audioFile = null) {
-    console.log('speakText called with:', { text, audioFile });
+    mobileDebug('speakText called with: ' + text + ', audioFile: ' + audioFile);
     
     // 如果正在錄音，先停止
     if (app.isListening) {
         app.stopListening();
-        console.log('Stopped recording before playing audio');
+        mobileDebug('Stopped recording before playing audio');
     }
+    
+    // 確保所有音頻都停止
+    app.ensureAudioStopped();
     
     // 只有當有音檔時才播放，否則不做任何事
     if (audioFile && audioFile.trim()) {
-        console.log('Attempting to play audio file:', audioFile);
+        mobileDebug('Attempting to play audio file: ' + audioFile);
         
         // 禁用錄音按鈕
         disableRecordingButtons();
         
         const audio = new Audio(audioFile);
         
+        // 設置音頻屬性
+        audio.preload = 'auto';
+        audio.volume = 1.0;
+        
         // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
-    mobileDebug('Audio playback ended, enabling recording buttons');
-    setTimeout(() => {
-        enableRecordingButtons();
-        mobileDebug('Recording buttons enabled after timeout');
-    }, 800);
-};
+            mobileDebug('Audio playback ended, enabling recording buttons');
+            
+            // 徹底清理音頻元素
+            try {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.src = '';
+                audio.load();
+                mobileDebug('音頻資源已清理');
+            } catch (e) {
+                mobileDebug('清理音頻資源失敗: ' + e.message);
+            }
+            
+            // 更長的延遲確保音頻設備完全釋放
+            setTimeout(() => {
+                enableRecordingButtons();
+                mobileDebug('Recording buttons enabled after timeout');
+                
+                // 再次確保語音識別狀態正確
+                app.isListening = false;
+                app.updateRecordButtonByScreen();
+            }, 1500); // 增加到1500ms
+        };
         
         audio.onerror = function(e) {
-            console.warn(`音檔載入失敗: ${audioFile}`, e);
+            mobileDebug(`音檔載入失敗: ${audioFile}`, e);
             // 錯誤時重新啟用按鈕，但不播放 TTS
-            enableRecordingButtons();
+            setTimeout(() => {
+                enableRecordingButtons();
+            }, 500);
             alert('音檔載入失敗，請檢查檔案是否存在');
         };
         
-        audio.play().then(() => {
-            console.log('Audio playing successfully');
-        }).catch(error => {
-            console.warn(`音檔播放失敗: ${audioFile}`, error);
-            // 錯誤時重新啟用按鈕，但不播放 TTS
-            enableRecordingButtons();
-            alert('音檔播放失敗');
-        });
+        // 延遲播放確保資源完全釋放
+        setTimeout(() => {
+            audio.play().then(() => {
+                mobileDebug('Audio playing successfully');
+            }).catch(error => {
+                mobileDebug(`音檔播放失敗: ${audioFile}`, error);
+                setTimeout(() => {
+                    enableRecordingButtons();
+                }, 500);
+                alert('音檔播放失敗');
+            });
+        }, 300);
+        
     } else {
-        console.log('No audio file provided, cannot play sound');
-        // 如果沒有音檔，顯示提示但不播放任何聲音
+        mobileDebug('No audio file provided, cannot play sound');
         alert('此項目沒有對應的音檔');
     }
 }
@@ -2325,6 +2398,7 @@ function enableRecordingButtons() {
     
     mobileDebug('=== enableRecordingButtons completed ===');
 }
+
 
 
 
