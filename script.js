@@ -1706,13 +1706,12 @@ function updatePracticeScreen() {
     app.updateRecordButton();
     app.resetTranscriptDisplay();
     
-// 延遲重新初始化語音識別器，確保狀態乾淨
-setTimeout(() => {
-    app.initSpeechRecognition();
     // 重新綁定點擊事件
-    app.bindWordClickEvents();
-}, 200);
+    setTimeout(() => {
+        app.bindWordClickEvents();
+    }, 100);
 }
+
 
 // 更新導航按鈕狀態
 function updateNavigationButtons() {
@@ -1744,20 +1743,11 @@ function updateNavigationButtons() {
 function navigateItem(direction) {
     const list = app.getCurrentList();
     
-    // 停止當前的語音識別並清理狀態
-    if (app.isListening) {
-        app.stopListening();
-    }
-    
     if (app.mode === 'challenge') {
         const newIndex = app.currentQuestionIndex + direction;
         if (newIndex >= 0 && newIndex < list.length) {
             app.currentQuestionIndex = newIndex;
             app.currentPartIndex = 0;
-            // 清理舊狀態
-            app.transcript = '';
-            app.interimTranscript = '';
-            app.comparisonResult = null;
             updatePracticeScreen();
         }
     } else {
@@ -1765,15 +1755,10 @@ function navigateItem(direction) {
         if (newIndex >= 0 && newIndex < list.length) {
             app.currentIndex = newIndex;
             app.currentPartIndex = 0;
-            // 清理舊狀態
-            app.transcript = '';
-            app.interimTranscript = '';
-            app.comparisonResult = null;
             updatePracticeScreen();
         }
     }
 }
-
 
 function navigatePart(direction) {
     const item = app.getCurrentItem();
