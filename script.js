@@ -374,7 +374,6 @@ function processWordsSheet(data) {
     return words;
 }
 
-
 function processIdiomsSheet(data) {
     const idiomsList = [];
     // 跳過標題行，從第二行開始處理
@@ -898,9 +897,8 @@ getCurrentList() {
     }
     
     if (this.contentType === 'vocabulary') {
-        return vocabulary;
-    } else if (this.contentType === 'idioms') {
-        return idioms;
+        // 合併單字和片語
+        return [...vocabulary, ...idioms];
     } else {
         return passages;
     }
@@ -1555,23 +1553,21 @@ function renderList() {
     const listTitle = document.getElementById('listTitle');
 
     
-    // 更新標題
-    const titleMap = {
-        'vocabulary': '單字列表',
-        'idioms': '片語列表',
-        'passage': '課文列表'
-    };
-    listTitle.textContent = titleMap[app.contentType] || '列表';
-    
-    // 取得資料
-    let allItems = [];
-    if (app.contentType === 'vocabulary') {
-        allItems = vocabulary;
-    } else if (app.contentType === 'idioms') {
-        allItems = idioms;
-    } else {
-        allItems = passages;
-    }
+// 更新標題
+const titleMap = {
+    'vocabulary': '詞彙列表',
+    'passage': '課文列表'
+};
+listTitle.textContent = titleMap[app.contentType] || '列表';
+
+// 取得資料
+let allItems = [];
+if (app.contentType === 'vocabulary') {
+    // 合併單字和片語
+    allItems = [...vocabulary, ...idioms];
+} else {
+    allItems = passages;
+}
     
 // 渲染 iOS 風格列表
 allItemsList.innerHTML = allItems.map((item, index) => {
@@ -1666,7 +1662,7 @@ function updatePracticeScreen() {
         } else {
             practiceTitle.innerHTML = wordsHtml;
         }
-} else {
+    } else {
     // 單字或片語
     const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
     practiceTitle.innerHTML = `
@@ -1674,6 +1670,7 @@ function updatePracticeScreen() {
         ${meaningDisplay}
     `;
 }
+
     
     // 更新副標題（僅課文有多句）
     if ('sentences' in item && item.sentences.length > 1) {
@@ -1861,27 +1858,17 @@ document.getElementById('challengeMode').addEventListener('click', () => {
 });
     
     // 內容類型選擇
-    document.getElementById('vocabularyType').addEventListener('click', () => {
-        app.resetAllStates();
-        app.contentType = 'vocabulary';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge(); // 挑戰模式不分類型
-        }
-    });
+document.getElementById('vocabularyType').addEventListener('click', () => {
+    app.resetAllStates();
+    app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
 
-    document.getElementById('idiomsType').addEventListener('click', () => {
-        app.resetAllStates();
-        app.contentType = 'idioms';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge(); // 挑戰模式不分類型
-        }
-    });
 
     document.getElementById('passageType').addEventListener('click', () => {
         app.resetAllStates();
@@ -1948,4 +1935,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-
