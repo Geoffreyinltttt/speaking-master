@@ -628,7 +628,30 @@ stopListening() {
     setTimeout(() => {
         this.updateWordColors();
     }, 100);
+    
+    // 重置音頻增益，避免影響後續音檔播放
+    setTimeout(() => {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime); // 靜音
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.01); // 播放 0.01 秒的靜音
+            
+            setTimeout(() => {
+                audioContext.close();
+            }, 100);
+        } catch (e) {
+            console.log('Audio context reset failed:', e);
+        }
+    }, 200);
 }
+
     
     updateRecordButton() {
         const recordBtn = document.getElementById('recordBtn');
@@ -1498,6 +1521,8 @@ function speakText(text, audioFile = null) {
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
+audio.volume = 0.6; // 設定為 60% 音量，可以調整
+audio.preload = 'auto';
         
         // 確保音頻完全停止後重新設定語音識別器
         audio.onended = function() {
