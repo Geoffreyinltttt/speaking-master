@@ -383,7 +383,7 @@ function processIdiomsSheet(data) {
             idiomsList.push({
                 id: `i${i}`,
                 word: row[1], // B欄: word
-                meaning: row[2] || '', // C欄: meaning (中文意思)
+                meaning: row[2] || '', // C欄: meaning (中文意思) ← 新增這行
                 example: row[1] || '', // B欄: word (用於練習文字)
                 audio: row[3] ? `audio/${row[3]}` : '' // D欄: audio (加上路徑前綴)
             });
@@ -391,6 +391,7 @@ function processIdiomsSheet(data) {
     }
     return idiomsList;
 }
+
 
 function processTextSheet(data) {
     const sentences = [];
@@ -426,6 +427,9 @@ class AppState {
         this.challengeQuestions = [];
         this.challengeAnswers = [];
         this.currentQuestionIndex = 0;
+		this.challengeType = null; // 'vocabulary' | 'passage' | 'mixed'
+    	this.challengeAnswers = [];
+    	this.currentScore = 0;
         
         // 語音識別相關
         this.recognition = null;
@@ -1759,51 +1763,83 @@ function navigatePart(direction) {
 }
 
 // 挑戰模式功能
-function startChallenge() {
+function startChallenge(challengeType = 'mixed') {
     app.mode = 'challenge';
-    app.contentType = 'mixed'; // 混合模式
+    app.challengeType = challengeType;
+    app.challengeAnswers = [];
+    app.currentScore = 0;
     
-    // 收集所有內容並標記類型
+    // 收集對應類型的內容
     let allItems = [];
     
-    // 加入單字
-    vocabulary.forEach(item => {
-        allItems.push({
-            ...item,
-            type: 'vocabulary'
-        });
-    });
-    
-    // 加入片語
-    idioms.forEach(item => {
-        allItems.push({
-            ...item,
-            type: 'idioms'
-        });
-    });
-    
-    // 加入課文（保持原有結構）
-    passages.forEach(passage => {
-        allItems.push({
-            ...passage,
-            type: 'passage'
-        });
-    });
+    switch(challengeType) {
+        case 'vocabulary':
+            // 只包含單字和片語
+            vocabulary.forEach(item => {
+                allItems.push({
+                    ...item,
+                    type: 'vocabulary',
+                    practiceText: item.example || item.word
+                });
+            });
+            idioms.forEach(item => {
+                allItems.push({
+                    ...item,
+                    type: 'idioms',
+                    practiceText: item.example || item.word
+                });
+            });
+            break;
+            
+        case 'passage':
+            // 只包含課文
+            passages.forEach(passage => {
+                allItems.push({
+                    ...passage,
+                    type: 'passage',
+                    practiceText: passage.sentences[0] // 取第一句
+                });
+            });
+            break;
+            
+        case 'mixed':
+        default:
+            // 包含所有內容
+            vocabulary.forEach(item => {
+                allItems.push({
+                    ...item,
+                    type: 'vocabulary',
+                    practiceText: item.example || item.word
+                });
+            });
+            idioms.forEach(item => {
+                allItems.push({
+                    ...item,
+                    type: 'idioms',
+                    practiceText: item.example || item.word
+                });
+            });
+            passages.forEach(passage => {
+                allItems.push({
+                    ...passage,
+                    type: 'passage',
+                    practiceText: passage.sentences[0]
+                });
+            });
+            break;
+    }
     
     // 隨機打亂順序並選擇10題
     const shuffled = allItems.sort(() => 0.5 - Math.random());
-    app.challengeQuestions = shuffled.slice(0, 10); // 限制為10題
+    app.challengeQuestions = shuffled.slice(0, 10);
     app.currentQuestionIndex = 0;
     
     // 重置狀態
-    app.currentIndex = 0;
-    app.currentPartIndex = 0;
     app.resetAllStates();
     
-    showScreen('practiceScreen');
-    updatePracticeScreen();
+    showScreen('challengeScreen');
+    updateChallengeScreen();
 }
-
 
 
 // 錄音控制
@@ -1826,6 +1862,150 @@ function toggleRecording() {
         }
     }
 }
+
+
+// 更新挑戰螢幕
+function updateChallengeScreen() {
+    const question = app.challengeQuestions[app.currentQuestionIndex];
+    if (!question) return;
+    
+    // 更新進度
+    document.getElementById('challengeProgress').textContent = 
+        `題目 ${app.currentQuestionIndex + 1} / ${app.challengeQuestions.length}`;
+    
+    // 更新分數
+    document.getElementById('challengeScore').textContent = app.currentScore || 0;
+    
+    // 更新練習內容
+    const practiceTitle = document.getElementById('challengePracticeTitle');
+    
+    if (question.type === 'passage') {
+        // 句子練習
+        const sentence = question.practiceText;
+        const words = sentence.split(' ');
+        const wordsHtml = words.map((word, index) => 
+            `<span class="word-default clickable-word" data-word-index="${index}" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${word}</span>`
+        ).join(' ');
+        
+        if (question.translation) {
+            practiceTitle.innerHTML = `
+                ${wordsHtml}
+                <div class="translation-text">${question.translation}</div>
+            `;
+        } else {
+            practiceTitle.innerHTML = wordsHtml;
+        }
+    } else {
+        // 單字或片語
+        const meaningDisplay = question.meaning ? `<div class="translation-text">${question.meaning}</div>` : '';
+        practiceTitle.innerHTML = `
+            <span class="word-default clickable-word" data-word-index="0" style="cursor: pointer; padding: 2px 4px; margin: 1px; border-radius: 4px; display: inline-block;">${question.practiceText}</span>
+            ${meaningDisplay}
+        `;
+    }
+    
+    // 重置錄音狀態
+    app.transcript = '';
+    app.comparisonResult = null;
+    app.resetWordColors();
+    app.updateRecordButton();
+    app.resetTranscriptDisplay();
+    
+    // 隱藏下一題按鈕
+    document.getElementById('nextQuestionBtn').classList.add('hidden');
+    
+    // 重新綁定點擊事件
+    setTimeout(() => {
+        app.bindWordClickEvents();
+    }, 100);
+}
+
+// 挑戰模式下一題
+function nextChallengeQuestion() {
+    if (app.currentQuestionIndex < app.challengeQuestions.length - 1) {
+        app.currentQuestionIndex++;
+        app.resetAllStates();
+        updateChallengeScreen();
+    } else {
+        // 完成所有題目，顯示結果
+        showChallengeResult();
+    }
+}
+
+// 顯示挑戰結果
+function showChallengeResult() {
+    const totalQuestions = app.challengeQuestions.length;
+    const totalScore = app.challengeAnswers.reduce((sum, answer) => sum + (answer.score || 0), 0);
+    const averageScore = Math.round(totalScore / totalQuestions);
+    const correctCount = app.challengeAnswers.filter(answer => (answer.score || 0) >= 60).length;
+    
+    // 更新結果顯示
+    document.getElementById('averageScore').innerHTML = 
+        `${averageScore} <span class="text-2xl text-slate-400">平均分</span>`;
+    document.getElementById('correctCount').textContent = 
+        `您答對了 ${correctCount} / ${totalQuestions} 題`;
+    
+    // 顯示表現等級和鼓勵話語
+    const performanceLevel = document.getElementById('performanceLevel');
+    const congratsMessage = document.getElementById('congratsMessage');
+    
+    if (averageScore >= 90) {
+        performanceLevel.textContent = '🏆 完美表現！';
+        congratsMessage.textContent = '哇！你的發音太棒了！';
+        performanceLevel.className = 'text-lg font-semibold text-yellow-400';
+    } else if (averageScore >= 80) {
+        performanceLevel.textContent = '🥈 優秀表現！';
+        congratsMessage.textContent = '很棒！繼續保持！';
+        performanceLevel.className = 'text-lg font-semibold text-emerald-400';
+    } else if (averageScore >= 60) {
+        performanceLevel.textContent = '🥉 良好表現！';
+        congratsMessage.textContent = '不錯！再練習會更好！';
+        performanceLevel.className = 'text-lg font-semibold text-blue-400';
+    } else {
+        performanceLevel.textContent = '💪 繼續努力！';
+        congratsMessage.textContent = '加油！多練習一定會進步！';
+        performanceLevel.className = 'text-lg font-semibold text-orange-400';
+    }
+    
+    // 顯示詳細結果
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = app.challengeAnswers.map((answer, index) => {
+        const icon = (answer.score || 0) >= 60 ? '✅' : '❌';
+        const scoreColor = (answer.score || 0) >= 60 ? 'text-green-400' : 'text-red-400';
+        return `
+            <li class="flex justify-between items-center py-2 border-b border-slate-700">
+                <span class="text-slate-300">
+                    ${icon} 第${index + 1}題: ${answer.question}
+                </span>
+                <span class="${scoreColor} font-bold">${answer.score || 0}分</span>
+            </li>
+        `;
+    }).join('');
+    
+    showScreen('challengeResult');
+}
+
+// 挑戰模式錄音控制
+function toggleChallengeRecording() {
+    if (app.isListening) {
+        app.stopListening();
+    } else {
+        // 檢查是否有音頻正在播放
+        const hasActiveAudio = document.querySelector('audio:not([paused])') || 
+                             ('speechSynthesis' in window && window.speechSynthesis.speaking);
+        
+        if (hasActiveAudio) {
+            // 如果有音頻在播放，先停止然後延遲開始錄音
+            app.ensureAudioStopped();
+            setTimeout(() => {
+                app.startListening();
+            }, 500);
+        } else {
+            app.startListening();
+        }
+    }
+}
+
 
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
@@ -1850,13 +2030,53 @@ document.addEventListener('DOMContentLoaded', function() {
         showScreen('contentTypeSelection');
     });
     
+// 挑戰模式類型選擇
 document.getElementById('challengeMode').addEventListener('click', () => {
     if (!dataLoaded) {
         alert('數據尚未載入完成，請稍候');
         return;
     }
-    startChallenge();
+    showScreen('challengeTypeSelection');
 });
+
+// 挑戰類型選擇
+document.getElementById('vocabularyChallengeType').addEventListener('click', () => {
+    startChallenge('vocabulary');
+});
+
+document.getElementById('passageChallengeType').addEventListener('click', () => {
+    startChallenge('passage');
+});
+
+document.getElementById('mixedChallengeType').addEventListener('click', () => {
+    startChallenge('mixed');
+});
+
+// 挑戰模式按鈕
+document.getElementById('challengeSpeakBtn').addEventListener('click', () => {
+    const question = app.challengeQuestions[app.currentQuestionIndex];
+    if (question && question.practiceText) {
+        const audioFile = question.audio || '';
+        speakText(question.practiceText, audioFile);
+    }
+});
+
+document.getElementById('challengeRecordBtn').addEventListener('click', toggleChallengeRecording);
+document.getElementById('nextQuestionBtn').addEventListener('click', nextChallengeQuestion);
+
+// 導航按鈕
+document.getElementById('backToModeFromChallenge').addEventListener('click', () => showScreen('modeSelection'));
+document.getElementById('backToListFromChallenge').addEventListener('click', () => showScreen('challengeTypeSelection'));
+
+// 結果頁面按鈕
+document.getElementById('retryCurrentChallengeBtn').addEventListener('click', () => {
+    startChallenge(app.challengeType);
+});
+
+document.getElementById('newChallengeBtn').addEventListener('click', () => {
+    showScreen('challengeTypeSelection');
+});
+
     
     // 內容類型選擇
 document.getElementById('vocabularyType').addEventListener('click', () => {
@@ -1917,11 +2137,6 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
     
     // 挑戰結果頁面按鈕
     document.getElementById('backToMainBtn').addEventListener('click', () => showScreen('modeSelection'));
-    document.getElementById('retryChallengeBtn').addEventListener('click', () => {
-        if (app.contentType) {
-            startChallenge(app.contentType);
-        }
-    });
     
     // 初始化應用
     showScreen('loadingScreen');
@@ -1936,6 +2151,7 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
 
 
 
