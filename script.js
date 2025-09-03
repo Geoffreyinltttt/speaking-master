@@ -488,7 +488,7 @@ class AppState {
         this.initSpeechRecognition();
     }
         
-    initSpeechRecognition() {
+initSpeechRecognition() {
     // 檢查瀏覽器相容性
     if (!checkBrowserCompatibility()) {
         console.error('瀏覽器不支持語音識別');
@@ -500,9 +500,7 @@ class AppState {
         console.warn('語音識別需要 HTTPS 連線或在 localhost 環境下運行');
         this.showHTTPSWarning();
         return;
-    }
-        }
-        
+    }        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
@@ -2002,7 +2000,7 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
     
     // 初始化應用
     showScreen('loadingScreen');
-});
+});	
 
 // 全域函數（供 HTML onclick 使用）
 window.startPractice = startPractice;
