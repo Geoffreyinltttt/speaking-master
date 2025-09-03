@@ -1440,6 +1440,19 @@ getCurrentList() {
         this.resetTranscriptDisplay();
     }
 
+// 重置語音識別系統
+    resetSpeechRecognition() {
+        if (this.recognition) {
+            this.recognition.stop();
+            this.recognition = null;
+        }
+        
+        // 重新初始化
+        setTimeout(() => {
+            this.initSpeechRecognition();
+        }, 500);
+    }
+
 } // ← AppState 類別的結束括號
 
 
@@ -1734,10 +1747,42 @@ function updatePracticeScreen() {
     app.updateRecordButton();
     app.resetTranscriptDisplay();
     
-    // 重新綁定點擊事件
+// 重新綁定點擊事件
     setTimeout(() => {
         app.bindWordClickEvents();
     }, 100);
+    
+    // 新增：同時更新兩張卡片的內容
+    updateCardContents();
+    
+    // 確保從聆聽卡開始
+    switchToCard('listen');
+}
+
+
+// 新增函數：更新卡片內容
+function updateCardContents() {
+    const item = app.getCurrentItem();
+    if (!item) return;
+    
+    const listenTitle = document.getElementById('listenTitle');
+    const practiceTitle = document.getElementById('practiceTitle');
+    
+    // 更新聆聽卡內容
+    if ('sentences' in item) {
+        const sentence = item.sentences[app.currentPartIndex];
+        const translation = item.translation ? `<div class="translation-text">${item.translation}</div>` : '';
+        
+        listenTitle.innerHTML = `${sentence}${translation}`;
+        practiceTitle.innerHTML = sentence.split(' ').map((word, index) => 
+            `<span class="word-default clickable-word" data-word-index="${index}">${word}</span>`
+        ).join(' ');
+    } else {
+        const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
+        	
+        listenTitle.innerHTML = `${item.example}${meaningDisplay}`;
+        practiceTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0">${item.example}</span>`;
+    }
 }
 
 // 更新導航按鈕狀態
@@ -1932,23 +1977,39 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
         renderList();
     });
     
-    // 練習頁面按鈕
-    document.getElementById('speakBtn').addEventListener('click', () => {
-        const item = app.getCurrentItem();
-        const practiceText = app.getCurrentPracticeText();
-        console.log('Debug - speakBtn clicked');
-        console.log('Debug - item:', item);
-        console.log('Debug - practiceText:', practiceText);
-        console.log('Debug - audioFile:', item ? item.audio : 'no item');
-        
-        if (practiceText && item) {
-            // 獲取音檔路徑
-            const audioFile = item.audio || '';
-            speakText(practiceText, audioFile);
-        }
-    });
 
-    document.getElementById('recordBtn').addEventListener('click', toggleRecording);
+// 練習頁面按鈕 - 聆聽卡
+    const listenBtn = document.getElementById('listenBtn');
+    if (listenBtn) {
+        listenBtn.addEventListener('click', () => {
+            const item = app.getCurrentItem();
+            const practiceText = app.getCurrentPracticeText();
+            if (practiceText && item) {
+                const audioFile = item.audio || '';
+                speakText(practiceText, audioFile);
+            }
+        });
+    }
+
+    // 卡片切換按鈕
+    const startPracticeBtn = document.getElementById('startPracticeBtn');
+    if (startPracticeBtn) {
+        startPracticeBtn.addEventListener('click', () => {
+            switchToCard('practice');
+        });
+    }
+
+    const backToListenBtn = document.getElementById('backToListenBtn');
+    if (backToListenBtn) {
+        backToListenBtn.addEventListener('click', () => {
+            switchToCard('listen');
+        });
+    }
+
+    const recordBtn = document.getElementById('recordBtn');
+    if (recordBtn) {
+        recordBtn.addEventListener('click', toggleRecording);
+    }
     
     // 練習導航
     document.getElementById('prevBtn').addEventListener('click', () => navigateItem(-1));
@@ -1977,4 +2038,5 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+window.switchToCard = switchToCard;
 
