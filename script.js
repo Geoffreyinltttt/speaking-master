@@ -1539,7 +1539,7 @@ function speakText(text, audioFile = null) {
             app.initSpeechRecognition();
         }, 500);
     }
-}	
+}
 
 
 function speakWithTTS(text) {
@@ -1852,6 +1852,7 @@ function toggleRecording() {
     }
 }
 
+// 手動重置語音識別的函數
 function resetSpeechRecognition() {
     console.log('手動重置語音識別...');
     
@@ -1990,3 +1991,4 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+window.resetSpeechRecognition = resetSpeechRecognition;
