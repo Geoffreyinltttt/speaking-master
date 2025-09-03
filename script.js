@@ -1569,25 +1569,41 @@ function speakText(text, audioFile = null) {
     
 // 檢測瀏覽器並選擇最佳語音
 const userAgent = navigator.userAgent.toLowerCase();
-const isEdge = userAgent.includes('edge') || userAgent.includes('edg') || userAgent.includes('chrome');
+const isEdge = userAgent.includes('edg'); // 更精確的 Edge 檢測
+const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg');
+
+console.log('瀏覽器檢測結果:', { userAgent: navigator.userAgent, isEdge, isChrome });
     
     if ('speechSynthesis' in window) {
         // 停止任何正在進行的語音合成
         window.speechSynthesis.cancel();
         
-        // 取得可用語音列表
-        const voices = window.speechSynthesis.getVoices();
-        let selectedVoice = null;
+// 確保語音列表已載入
+let voices = window.speechSynthesis.getVoices();
+
+// 如果語音列表為空，等待載入
+if (voices.length === 0) {
+    console.log('語音列表為空，等待載入...');
+    window.speechSynthesis.onvoiceschanged = () => {
+        voices = window.speechSynthesis.getVoices();
+        console.log('語音列表載入完成，數量:', voices.length);
+        proceedWithSpeech();
+    };
+    return;
+}
+
+proceedWithSpeech();
+
+function proceedWithSpeech() {
+    let selectedVoice = null;
         
-        if (isEdge) {
-            // Edge瀏覽器：優先選擇高品質AI語音
-            selectedVoice = selectBestEdgeVoice(voices);
-            console.log('🎯 Edge瀏覽器：使用高品質AI語音', selectedVoice?.name);
-        } else {
-            // 其他瀏覽器：選擇最佳可用語音
-            selectedVoice = selectBestVoice(voices);
-            console.log('🔊 使用標準語音合成', selectedVoice?.name);
-        }
+    if (isEdge) {
+        selectedVoice = selectBestEdgeVoice(voices);
+        console.log('🎯 Edge瀏覽器：使用高品質AI語音', selectedVoice?.name);
+    } else {
+        selectedVoice = selectBestVoice(voices);
+        console.log('📊 使用標準語音合成', selectedVoice?.name);
+    }
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
@@ -1633,10 +1649,31 @@ const isEdge = userAgent.includes('edge') || userAgent.includes('edg') || userAg
 }
 
 function selectBestEdgeVoice(voices) {
-    // 強制優先使用 Aria 語音的順序
+    console.log('=== 開始選擇 Edge 語音 ===');
+    console.log('可用語音總數:', voices.length);
+    console.log('所有可用語音:', voices.map(v => `${v.name} (${v.lang})`));
+    
+    // 強制優先順序：絕對優先 Aria
+    const ariaVoices = voices.filter(v => 
+        v.name.toLowerCase().includes('aria') && 
+        v.lang.startsWith('en')
+    );
+    
+    if (ariaVoices.length > 0) {
+        // 優先選擇 Online Natural 版本的 Aria
+        const ariaOnline = ariaVoices.find(v => v.name.includes('Online') && v.name.includes('Natural'));
+        if (ariaOnline) {
+            console.log(`🎯 找到最佳 Aria 語音: ${ariaOnline.name}`);
+            return ariaOnline;
+        }
+        
+        // 其次選擇任何 Aria 語音
+        console.log(`🎯 使用 Aria 語音: ${ariaVoices[0].name}`);
+        return ariaVoices[0];
+    }
+    
+    // 如果沒有 Aria，按原本邏輯選擇
     const preferredVoices = [
-        'Microsoft Aria Online (Natural) - English (United States)',
-        'Microsoft Aria - English (United States)',
         'Microsoft Jenny Online (Natural) - English (United States)', 
         'Microsoft Guy Online (Natural) - English (United States)',
         'Microsoft Sara Online (Natural) - English (United States)',
@@ -1644,41 +1681,16 @@ function selectBestEdgeVoice(voices) {
         'Microsoft Zira - English (United States)'
     ];
     
-    console.log('可用的語音列表:', voices.map(v => v.name));
-    
-    // 首先強制搜尋 Aria 語音（不區分大小寫）
-    const ariaVoice = voices.find(v => 
-        v.name.toLowerCase().includes('aria') && 
-        v.lang.startsWith('en')
-    );
-    if (ariaVoice) {
-        console.log(`🎯 強制使用 Aria 語音: ${ariaVoice.name}`);
-        return ariaVoice;
-    }
-    
-    // 然後嘗試找到完全匹配的語音
     for (const preferredName of preferredVoices) {
         const voice = voices.find(v => v.name === preferredName);
         if (voice) {
-            console.log(`🎯 找到首選語音: ${voice.name}`);
+            console.log(`🎯 找到備選語音: ${voice.name}`);
             return voice;
         }
     }
     
-    // 如果沒有完全匹配，尋找包含關鍵字的語音（優先 Natural 和 Online）
-    const keywords = ['Natural', 'Online', 'Jenny'];
-    for (const keyword of keywords) {
-        const voice = voices.find(v => 
-            v.name.includes(keyword) && 
-            v.lang.startsWith('en')
-        );
-        if (voice) {
-            console.log(`🎯 找到關鍵字匹配語音: ${voice.name}`);
-            return voice;
-        }
-    }
-    
-    // 最後降級到任何英語語音
+    // 最後降級
+    console.log('⚠️ 沒有找到理想語音，使用標準選擇');
     return selectBestVoice(voices);
 }
 
@@ -2214,5 +2226,6 @@ window.selectChallengeType = selectChallengeType;
 window.retryCurrentChallenge = retryCurrentChallenge;
 window.startNewChallenge = startNewChallenge;
 window.showChallengeResults = showChallengeResults;
+
 
 
