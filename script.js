@@ -20,6 +20,16 @@ function checkBrowserCompatibility() {
     const isChrome = userAgent.includes('chrome') && !userAgent.includes('edge');
     const isEdge = userAgent.includes('edge') || userAgent.includes('edg');
     const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+
+// 如果不是Edge，顯示Edge推薦提示
+if (hasSpeechRecognition && !isEdge) {
+    setTimeout(() => {
+        showEdgeRecommendation();
+        hideDebugInfo();
+    }, 2000);
+    return true;
+}
+
     
     // 顯示檢測結果
     const debugInfo = `
@@ -135,6 +145,80 @@ function dismissFirefoxWarning() {
     const warning = document.getElementById('firefoxWarning');
     if (warning) warning.remove();
 }
+
+
+// 顯示Edge推薦提示
+function showEdgeRecommendation() {
+    console.log('顯示Edge推薦提示...');
+    
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'edgeRecommendation';
+    warningDiv.className = 'fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    warningDiv.style.zIndex = '9999';
+    
+    warningDiv.innerHTML = `
+        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="text-blue-400 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">獲得最佳語音體驗</h3>
+            <p class="text-slate-300 mb-6 leading-relaxed">
+                為了提供更自然流暢的AI語音效果，<br>
+                建議使用 <strong class="text-blue-400">Microsoft Edge</strong> 瀏覽器：
+            </p>
+            
+            <div class="text-left mb-6 space-y-3">
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>Microsoft Aria 高品質AI語音</span>
+                </div>
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>更自然的發音和語調</span>
+                </div>
+                <div class="flex items-center gap-3 text-green-400">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>最佳學習效果</span>
+                </div>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="continueWithCurrentBrowser()" class="w-full px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-xl transition-all duration-300">
+                    繼續使用目前瀏覽器
+                </button>
+                <button onclick="dismissEdgeRecommendation()" class="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-300">
+                    我知道了
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-400 mt-4">
+                💡 Edge瀏覽器完全免費，可與現有瀏覽器並存使用
+            </p>
+        </div>
+    `;
+    
+    document.body.appendChild(warningDiv);
+}
+
+function continueWithCurrentBrowser() {
+    const recommendation = document.getElementById('edgeRecommendation');
+    if (recommendation) recommendation.remove();
+}
+
+function dismissEdgeRecommendation() {
+    const recommendation = document.getElementById('edgeRecommendation');
+    if (recommendation) recommendation.remove();
+}
+
+
 
 // 顯示調試資訊（手機可見）
 function showDebugInfo(message) {
@@ -794,12 +878,12 @@ stopListening() {
             </div>
         `;
         
-        // 插入到練習標題下方
-        const practiceTitle = document.getElementById('practiceTitle');
-        if (practiceTitle && practiceTitle.parentNode) {
-            practiceTitle.parentNode.insertBefore(feedbackDiv, practiceTitle.nextSibling);
-        }
-    }
+// 插入到回饋容器中
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.appendChild(feedbackDiv);
+}
+}
 
     // 顯示點擊提示（僅句子練習）
     showClickHint() {
@@ -834,6 +918,12 @@ stopListening() {
         // 移除舊的回饋區域
         document.getElementById('detailedFeedback')?.remove();
         
+// 清理回饋容器
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.innerHTML = '';
+}
+
         // 創建新的回饋區域
         const feedbackDiv = document.createElement('div');
         feedbackDiv.id = 'detailedFeedback';
@@ -863,12 +953,12 @@ stopListening() {
         
         feedbackDiv.innerHTML = feedbackHTML;
         
-        // 將回饋插入到練習區域下方
-        const practiceUnit = document.querySelector('.space-y-8') || document.querySelector('.challenge-practice-unit');
-        if (practiceUnit) {
-            practiceUnit.appendChild(feedbackDiv);
-        }
-    }
+// 將回饋插入到專門的回饋容器中
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.appendChild(feedbackDiv);
+}
+}
 
     getCurrentPracticeText() {
         if (this.currentScreen === 'practiceScreen') {
@@ -1430,6 +1520,13 @@ getCurrentList() {
         // 清理 DOM 中的回饋
         document.getElementById('detailedFeedback')?.remove();
         
+
+// 清理回饋容器
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.innerHTML = '';
+}
+
         // 重置錄音按鈕
         this.updateRecordButton();
         
@@ -1450,6 +1547,13 @@ function showScreen(screenId) {
     // 清理所有回饋內容（不管切換到哪個螢幕）
     document.getElementById('detailedFeedback')?.remove();
     
+
+// 清理回饋容器
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.innerHTML = '';
+}
+
     // 如果要切換到非練習螢幕，停止語音識別
     if (screenId !== 'practiceScreen' && screenId !== 'challengeScreen' && app.isListening) {
         app.stopListening();
@@ -1477,88 +1581,141 @@ function showScreen(screenId) {
     app.currentScreen = screenId;
 }
 
+// 語音合成功能 - 優先使用Edge AI語音
 function speakText(text, audioFile = null) {
     console.log('speakText called with:', { text, audioFile });
     
-    // 強制停止語音識別
+    // 如果正在錄音，先停止
     if (app.isListening) {
         app.stopListening();
+        console.log('Stopped recording before playing audio');
     }
     
-    // 完全停止語音識別系統
-    if (app.recognition) {
-        app.recognition.stop();
-        app.recognition = null;
-    }
+    // 檢測瀏覽器並選擇最佳語音
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isEdge = userAgent.includes('edge') || userAgent.includes('edg');
     
-    // 顯示狀態提示
-    const transcriptArea = document.getElementById('transcriptArea');
-    if (transcriptArea) {
-        transcriptArea.innerHTML = '<p class="italic text-blue-400 text-center">🎵 正在播放音頻，請等待播放完成後再錄音...</p>';
-    }
-    
-    if (audioFile && audioFile.trim()) {
-        console.log('Attempting to play audio file:', audioFile);
-        const audio = new Audio(audioFile);
-        audio.volume = 0.7;
+    if ('speechSynthesis' in window) {
+        // 停止任何正在進行的語音合成
+        window.speechSynthesis.cancel();
         
-        // 音頻播放結束後的處理
-        audio.onended = function() {
-            console.log('Audio ended');
-            audio.src = '';
-            audio.load();
-            audio.remove();
-            
-            // 顯示指引訊息
-            if (transcriptArea) {
-                transcriptArea.innerHTML = `
-                    <div class="text-center">
-                        <p class="italic text-green-400 mb-3">✅ 音頻播放完成！</p>
-                        <p class="text-slate-300 text-sm">現在請點擊「開始錄音」按鈕來練習發音</p>
-                    </div>
-                `;
-            }
-            
-            // 延遲重新初始化語音識別
-            setTimeout(() => {
-                console.log('Reinitializing speech recognition after delay...');
-                app.initSpeechRecognition();
-            }, 2000);
-        };
+        // 取得可用語音列表
+        const voices = window.speechSynthesis.getVoices();
+        let selectedVoice = null;
         
-        audio.onerror = function(e) {
-            console.warn(`音檔播放失敗: ${audioFile}`, e);
-            if (transcriptArea) {
-                transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 音檔播放失敗</p>';
-            }
-            // 重新初始化
-            setTimeout(() => {
-                app.initSpeechRecognition();
-                app.resetTranscriptDisplay();
-            }, 1000);
-        };
-        
-        audio.play().then(() => {
-            console.log('🎵 音檔播放開始');
-        }).catch(error => {
-            console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
-            if (transcriptArea) {
-                transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 音檔播放失敗，請檢查檔案路徑</p>';
-            }
-            setTimeout(() => {
-                app.initSpeechRecognition();
-                app.resetTranscriptDisplay();
-            }, 1000);
-        });
-    } else {
-        console.log('❌ 沒有提供音檔');
-        if (transcriptArea) {
-            transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 此項目沒有音檔</p>';
+        if (isEdge) {
+            // Edge瀏覽器：優先選擇高品質AI語音
+            selectedVoice = selectBestEdgeVoice(voices);
+            console.log('🎯 Edge瀏覽器：使用高品質AI語音', selectedVoice?.name);
+        } else {
+            // 其他瀏覽器：選擇最佳可用語音
+            selectedVoice = selectBestVoice(voices);
+            console.log('🔊 使用標準語音合成', selectedVoice?.name);
         }
-        setTimeout(() => {
-            app.resetTranscriptDisplay();
-        }, 2000);
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        
+        // 語音結束後確保設備釋放
+        utterance.onend = function() {
+            console.log('🎵 語音播放結束，音頻設備已釋放');
+            setTimeout(() => {
+                console.log('✅ 準備進行語音識別');
+            }, 300);
+        };
+        
+        utterance.onerror = function(event) {
+            console.error('❌ 語音合成發生錯誤:', event.error);
+        };
+        
+        utterance.onstart = function() {
+            console.log('🎤 開始語音播放');
+        };
+        
+        window.speechSynthesis.speak(utterance);
+        
+    } else {
+        console.error('❌ 此瀏覽器不支援語音合成');
+        alert('您的瀏覽器不支援語音播放功能');
     }
+}
+
+// 選擇Edge的最佳AI語音
+function selectBestEdgeVoice(voices) {
+    // Edge高品質語音的優先順序
+    const preferredVoices = [
+        'Microsoft Aria Online (Natural) - English (United States)',
+        'Microsoft Jenny Online (Natural) - English (United States)', 
+        'Microsoft Guy Online (Natural) - English (United States)',
+        'Microsoft Sara Online (Natural) - English (United States)',
+        'Microsoft Aria - English (United States)',
+        'Microsoft Jenny - English (United States)',
+        'Microsoft Zira - English (United States)'
+    ];
+    
+    // 首先嘗試找到完全匹配的語音
+    for (const preferredName of preferredVoices) {
+        const voice = voices.find(v => v.name === preferredName);
+        if (voice) {
+            console.log(`🎯 找到首選語音: ${voice.name}`);
+            return voice;
+        }
+    }
+    
+    // 如果沒有完全匹配，尋找包含關鍵字的語音
+    const keywords = ['Aria', 'Jenny', 'Natural', 'Online'];
+    for (const keyword of keywords) {
+        const voice = voices.find(v => 
+            v.name.includes(keyword) && 
+            v.lang.startsWith('en')
+        );
+        if (voice) {
+            console.log(`🎯 找到關鍵字匹配語音: ${voice.name}`);
+            return voice;
+        }
+    }
+    
+    // 最後降級到任何英語語音
+    return selectBestVoice(voices);
+}
+
+// 選擇最佳標準語音
+function selectBestVoice(voices) {
+    // 標準語音的優先順序
+    const preferredVoices = [
+        'Google US English',
+        'Microsoft Zira - English (United States)',
+        'Microsoft David - English (United States)',
+        'Alex',
+        'Samantha'
+    ];
+    
+    // 首先嘗試找到首選語音
+    for (const preferredName of preferredVoices) {
+        const voice = voices.find(v => v.name === preferredName);
+        if (voice) {
+            console.log(`🔊 找到標準語音: ${voice.name}`);
+            return voice;
+        }
+    }
+    
+    // 如果沒有首選，選擇任何英語語音
+    const englishVoice = voices.find(v => v.lang.startsWith('en'));
+    if (englishVoice) {
+        console.log(`🔊 使用英語語音: ${englishVoice.name}`);
+        return englishVoice;
+    }
+    
+    // 最後選擇預設語音
+    console.log('🔊 使用預設語音');
+    return voices[0] || null;
 }
 
 
@@ -1589,6 +1746,13 @@ function renderList() {
     // 清理之前的回饋內容
     document.getElementById('detailedFeedback')?.remove();
     
+
+// 清理回饋容器
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.innerHTML = '';
+}
+
     // 重置應用狀態
     app.transcript = '';
     app.comparisonResult = null;
@@ -1660,6 +1824,13 @@ function startPractice(index, from = 'list') {
     // 清理之前的回饋內容
     document.getElementById('detailedFeedback')?.remove();
     
+
+// 清理回饋容器
+const feedbackContainer = document.getElementById('feedbackContainer');
+if (feedbackContainer) {
+    feedbackContainer.innerHTML = '';
+}
+
     // 重置所有相關狀態
     app.currentIndex = index;
     app.currentPartIndex = 0;
@@ -1872,56 +2043,6 @@ function toggleRecording() {
     }
 }
 
-// 手動重置語音識別的函數
-function resetSpeechRecognition() {
-    console.log('手動重置語音識別...');
-    
-    // 停止所有音頻
-    document.querySelectorAll('audio').forEach(audio => {
-        audio.pause();
-        audio.src = '';
-        audio.load();
-        audio.remove();
-    });
-    
-    // 停止語音合成
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
-    
-    // 完全停止現有的語音識別
-    if (app.recognition) {
-        app.recognition.stop();
-        app.recognition = null;
-    }
-    
-    // 清理狀態
-    app.isListening = false;
-    app.transcript = '';
-    app.interimTranscript = '';
-    app.comparisonResult = null;
-    
-    const transcriptArea = document.getElementById('transcriptArea');
-    if (transcriptArea) {
-        transcriptArea.innerHTML = '<p class="italic text-yellow-400 text-center">🔄 正在重置語音識別系統...</p>';
-    }
-    
-    // 更長的延遲確保完全重置
-    setTimeout(() => {
-        app.initSpeechRecognition();
-        app.updateRecordButton();
-        
-        if (transcriptArea) {
-            transcriptArea.innerHTML = '<p class="italic text-green-400 text-center">✅ 語音識別已重置完成，可以開始錄音了！</p>';
-            setTimeout(() => {
-                app.resetTranscriptDisplay();
-            }, 3000);
-        }
-        
-        console.log('語音識別重置完成');
-    }, 3000); // 延長到3秒
-}
-
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
     console.log('頁面載入完成，開始初始化...');
@@ -2031,5 +2152,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-window.resetSpeechRecognition = resetSpeechRecognition;
-
