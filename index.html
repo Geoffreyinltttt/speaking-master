@@ -148,7 +148,6 @@
     </div>
 </div>
 
-
                 <!-- Practice Screen -->
                 <div id="practiceScreen" class="screen hidden">
                     <div class="flex justify-between items-start mb-8">
@@ -165,7 +164,7 @@
 
                     
 <!-- Practice Unit -->
-<div class="space-y-8">
+<div class="space-y-6">
    <!-- 練習文字卡片 -->
    <div class="glass-secondary rounded-3xl p-8 border border-white/10">
        <div class="text-center space-y-6">
@@ -188,18 +187,14 @@
            <div id="transcriptArea" class="mt-6 p-4 min-h-[80px] glass-tertiary rounded-xl transition-all duration-300">
                <p class="italic text-slate-400 text-center">點擊 "開始錄音" 後開始說話...</p>
            </div>
-           
-           <!-- 重置按鈕 -->
-           <div class="mt-4 text-center">
-               <button onclick="resetSpeechRecognition()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-medium rounded-lg transition-all duration-300">
-                   🔄 重置語音識別
-               </button>
-               <p class="text-xs text-slate-400 mt-2">如果語音識別無法使用，請點擊此按鈕</p>
-           </div>
        </div>
    </div>
+   
+   <!-- 回饋內容區域 -->
+   <div id="feedbackContainer" class="space-y-4">
+       <!-- 動態回饋內容將插入到這裡 -->
+   </div>
 </div>
-
 
                     <!-- Navigation -->
 <div class="flex justify-between items-center mt-6 gap-3">
