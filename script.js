@@ -433,7 +433,7 @@ class AppState {
         this.transcript = '';
         this.interimTranscript = '';
         this.comparisonResult = null;
-        
+        this.currentCard = 'listen'; // 'listen' | 'practice'
         this.initSpeechRecognition();
     }
         
@@ -1442,6 +1442,46 @@ getCurrentList() {
 
 } // ← AppState 類別的結束括號
 
+
+// 卡片切換功能
+function switchToCard(cardType) {
+    const listenCard = document.getElementById('listenCard');
+    const practiceCard = document.getElementById('practiceCard');
+    
+    if (cardType === 'listen') {
+        // 完全清理練習卡的所有功能
+        if (app.isListening) {
+            app.stopListening();
+        }
+        app.ensureAudioStopped();
+        
+        // 顯示聆聽卡
+        listenCard.classList.remove('hidden');
+        practiceCard.classList.add('hidden');
+        app.currentCard = 'listen';
+        
+    } else if (cardType === 'practice') {
+        // 完全清理聆聽卡的所有功能
+        app.ensureAudioStopped();
+        
+        // 重新初始化語音識別
+        setTimeout(() => {
+            app.resetSpeechRecognition();
+        }, 500);
+        
+        // 顯示練習卡
+        listenCard.classList.add('hidden');
+        practiceCard.classList.remove('hidden');
+        app.currentCard = 'practice';
+        
+        // 重置練習狀態
+        app.transcript = '';
+        app.comparisonResult = null;
+        app.resetTranscriptDisplay();
+    }
+}
+
+
 // 全域應用狀態
 const app = new AppState();
 
@@ -1937,3 +1977,4 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
+
