@@ -733,7 +733,7 @@ class AppState {
         } else {
             recordBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M7 4a3 3 0 0 1 6 0v4a3 3 0 1 1-6 0V4zm4 10.93A7.001 7.001 0 0 0 17 8h-1a6 6 0 1 1-12 0H3a7.001 7.001 0 0 0 6 6.93V17H7a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.07z" clip-rule="evenodd" />
                 </svg>
                 <span>開始錄音</span>
             `;
@@ -1604,43 +1604,40 @@ function proceedWithSpeech() {
         selectedVoice = selectBestVoice(voices);
         console.log('📊 使用標準語音合成', selectedVoice?.name);
     }
+    
+    console.log('🔍 當前可用的所有語音:', voices.map(v => v.name));
         
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
 
-        if (selectedVoice) {
-    utterance.voice = selectedVoice;
-    console.log(`🔊 實際使用的語音: ${selectedVoice.name}`);
-} else {
-    console.log('⚠️ 沒有選中任何特定語音，使用系統預設');
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log(`🔊 實際使用的語音: ${selectedVoice.name}`);
+    } else {
+        console.log('⚠️ 沒有選中任何特定語音，使用系統預設');
+    }
+    
+    // 語音結束後確保設備釋放
+    utterance.onend = function() {
+        console.log('🎵 語音播放結束，音頻設備已釋放');
+        setTimeout(() => {
+            console.log('✅ 準備進行語音識別');
+        }, 300);
+    };
+    
+    utterance.onerror = function(event) {
+        console.error('❌ 語音合成發生錯誤:', event.error);
+    };
+    
+    utterance.onstart = function() {
+        console.log('🎤 開始語音播放');
+    };
+    
+    window.speechSynthesis.speak(utterance);
 }
-
-
-        
-        if (selectedVoice) {
-            utterance.voice = selectedVoice;
-        }
-        
-        // 語音結束後確保設備釋放
-        utterance.onend = function() {
-            console.log('🎵 語音播放結束，音頻設備已釋放');
-            setTimeout(() => {
-                console.log('✅ 準備進行語音識別');
-            }, 300);
-        };
-        
-        utterance.onerror = function(event) {
-            console.error('❌ 語音合成發生錯誤:', event.error);
-        };
-        
-        utterance.onstart = function() {
-            console.log('🎤 開始語音播放');
-        };
-        
-        window.speechSynthesis.speak(utterance);
         
     } else {
         console.error('❌ 此瀏覽器不支援語音合成');
@@ -2226,6 +2223,7 @@ window.selectChallengeType = selectChallengeType;
 window.retryCurrentChallenge = retryCurrentChallenge;
 window.startNewChallenge = startNewChallenge;
 window.showChallengeResults = showChallengeResults;
+
 
 
 
