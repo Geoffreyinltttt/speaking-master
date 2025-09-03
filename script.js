@@ -1480,64 +1480,84 @@ function showScreen(screenId) {
 function speakText(text, audioFile = null) {
     console.log('speakText called with:', { text, audioFile });
     
-    // 強制停止並重置語音識別
+    // 強制停止語音識別
     if (app.isListening) {
         app.stopListening();
     }
     
-    // 完全重置語音識別系統
+    // 完全停止語音識別系統
     if (app.recognition) {
         app.recognition.stop();
         app.recognition = null;
     }
     
+    // 顯示狀態提示
+    const transcriptArea = document.getElementById('transcriptArea');
+    if (transcriptArea) {
+        transcriptArea.innerHTML = '<p class="italic text-blue-400 text-center">🎵 正在播放音頻，請等待播放完成後再錄音...</p>';
+    }
+    
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
-        audio.volume = 0.7; // 限制音量
+        audio.volume = 0.7;
         
+        // 音頻播放結束後的處理
         audio.onended = function() {
-            console.log('Audio ended, reinitializing speech recognition...');
-            // 確保音頻完全停止
+            console.log('Audio ended');
             audio.src = '';
             audio.load();
             audio.remove();
             
-            // 延長等待時間並重新初始化語音識別
+            // 顯示指引訊息
+            if (transcriptArea) {
+                transcriptArea.innerHTML = `
+                    <div class="text-center">
+                        <p class="italic text-green-400 mb-3">✅ 音頻播放完成！</p>
+                        <p class="text-slate-300 text-sm">現在請點擊「開始錄音」按鈕來練習發音</p>
+                    </div>
+                `;
+            }
+            
+            // 延遲重新初始化語音識別
             setTimeout(() => {
-                console.log('Reinitializing speech recognition after audio...');
+                console.log('Reinitializing speech recognition after delay...');
                 app.initSpeechRecognition();
-                console.log('Speech recognition reinitialized and ready');
-            }, 3000); // 延長到3秒確保設備完全釋放
+            }, 2000);
         };
         
         audio.onerror = function(e) {
             console.warn(`音檔播放失敗: ${audioFile}`, e);
-            // 即使出錯也要重新初始化
+            if (transcriptArea) {
+                transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 音檔播放失敗</p>';
+            }
+            // 重新初始化
             setTimeout(() => {
                 app.initSpeechRecognition();
-            }, 1500);
-        };
-        
-        audio.onpause = function() {
-            console.log('Audio paused, preparing for speech recognition...');
+                app.resetTranscriptDisplay();
+            }, 1000);
         };
         
         audio.play().then(() => {
-            console.log('🎵 音檔播放成功');
+            console.log('🎵 音檔播放開始');
         }).catch(error => {
             console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
-            // 播放失敗也要重新初始化
+            if (transcriptArea) {
+                transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 音檔播放失敗，請檢查檔案路徑</p>';
+            }
             setTimeout(() => {
                 app.initSpeechRecognition();
-            }, 1500);
+                app.resetTranscriptDisplay();
+            }, 1000);
         });
     } else {
         console.log('❌ 沒有提供音檔');
-        // 沒有音檔時立即重新初始化
+        if (transcriptArea) {
+            transcriptArea.innerHTML = '<p class="italic text-red-400 text-center">❌ 此項目沒有音檔</p>';
+        }
         setTimeout(() => {
-            app.initSpeechRecognition();
-        }, 500);
+            app.resetTranscriptDisplay();
+        }, 2000);
     }
 }
 
@@ -1856,30 +1876,50 @@ function toggleRecording() {
 function resetSpeechRecognition() {
     console.log('手動重置語音識別...');
     
+    // 停止所有音頻
+    document.querySelectorAll('audio').forEach(audio => {
+        audio.pause();
+        audio.src = '';
+        audio.load();
+        audio.remove();
+    });
+    
+    // 停止語音合成
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+    
     // 完全停止現有的語音識別
     if (app.recognition) {
         app.recognition.stop();
         app.recognition = null;
     }
     
-    // 確保所有音頻停止
-    app.ensureAudioStopped();
+    // 清理狀態
+    app.isListening = false;
+    app.transcript = '';
+    app.interimTranscript = '';
+    app.comparisonResult = null;
     
-    // 延遲後重新初始化
+    const transcriptArea = document.getElementById('transcriptArea');
+    if (transcriptArea) {
+        transcriptArea.innerHTML = '<p class="italic text-yellow-400 text-center">🔄 正在重置語音識別系統...</p>';
+    }
+    
+    // 更長的延遲確保完全重置
     setTimeout(() => {
         app.initSpeechRecognition();
-        app.resetTranscriptDisplay();
-        console.log('語音識別已手動重置完成');
+        app.updateRecordButton();
         
-        // 顯示成功提示
-        const transcriptArea = document.getElementById('transcriptArea');
         if (transcriptArea) {
-            transcriptArea.innerHTML = '<p class="italic text-green-400 text-center">✅ 語音識別已重置，現在可以開始錄音了</p>';
+            transcriptArea.innerHTML = '<p class="italic text-green-400 text-center">✅ 語音識別已重置完成，可以開始錄音了！</p>';
             setTimeout(() => {
                 app.resetTranscriptDisplay();
-            }, 2000);
+            }, 3000);
         }
-    }, 1000);
+        
+        console.log('語音識別重置完成');
+    }, 3000); // 延長到3秒
 }
 
 // 事件監聽器設定
@@ -1992,3 +2032,4 @@ window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
 window.resetSpeechRecognition = resetSpeechRecognition;
+
