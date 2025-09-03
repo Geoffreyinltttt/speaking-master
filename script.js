@@ -433,7 +433,7 @@ class AppState {
         this.transcript = '';
         this.interimTranscript = '';
         this.comparisonResult = null;
-        this.currentCard = 'listen'; // 'listen' | 'practice'
+        
         this.initSpeechRecognition();
     }
         
@@ -1440,76 +1440,7 @@ getCurrentList() {
         this.resetTranscriptDisplay();
     }
 
-// 重置語音識別系統
-    resetSpeechRecognition() {
-        if (this.recognition) {
-            this.recognition.stop();
-            this.recognition = null;
-        }
-        
-        // 重新初始化
-        setTimeout(() => {
-            this.initSpeechRecognition();
-        }, 500);
-    }
-
 } // ← AppState 類別的結束括號
-
-
-// 卡片切換功能
-function switchToCard(cardType) {
-    const listenCard = document.getElementById('listenCard');
-    const practiceCard = document.getElementById('practiceCard');
-    
-    if (cardType === 'listen') {
-        // 完全清理練習卡的所有功能
-        if (app.isListening) {
-            app.stopListening();
-        }
-        app.ensureAudioStopped();
-        
-        // 顯示聆聽卡
-        listenCard.classList.remove('hidden');
-        practiceCard.classList.add('hidden');
-        app.currentCard = 'listen';
-        
-    } else if (cardType === 'practice') {
-        // 更強力的音頻清理
-        app.ensureAudioStopped();
-        
-        // 強制停止所有可能的音頻
-        document.querySelectorAll('audio').forEach(audio => {
-            audio.pause();
-            audio.src = '';
-            audio.load();
-            audio.remove();
-        });
-        
-        // 等待更長時間確保設備完全釋放
-        setTimeout(() => {
-            // 完全重新初始化語音識別
-            if (app.recognition) {
-                app.recognition.stop();
-                app.recognition = null;
-            }
-            
-            setTimeout(() => {
-                app.initSpeechRecognition();
-                console.log('語音識別已重新初始化');
-            }, 1000);
-        }, 1500);
-        
-        // 顯示練習卡
-        listenCard.classList.add('hidden');
-        practiceCard.classList.remove('hidden');
-        app.currentCard = 'practice';
-        
-        // 重置練習狀態
-        app.transcript = '';
-        app.comparisonResult = null;
-        app.resetTranscriptDisplay();
-    }
-}
 
 // 全域應用狀態
 const app = new AppState();
@@ -1546,46 +1477,70 @@ function showScreen(screenId) {
     app.currentScreen = screenId;
 }
 
-// 語音合成功能 - 支持音檔和 TTS
 function speakText(text, audioFile = null) {
     console.log('speakText called with:', { text, audioFile });
     
-    // 如果正在錄音，先停止
+    // 強制停止並重置語音識別
     if (app.isListening) {
         app.stopListening();
-        console.log('Stopped recording before playing audio');
     }
     
-    // 如果有音檔，優先播放音檔
+    // 完全重置語音識別系統
+    if (app.recognition) {
+        app.recognition.stop();
+        app.recognition = null;
+    }
+    
     if (audioFile && audioFile.trim()) {
         console.log('Attempting to play audio file:', audioFile);
         const audio = new Audio(audioFile);
+        audio.volume = 0.7; // 限制音量
         
-        // 確保音頻完全停止後才允許錄音
         audio.onended = function() {
-            console.log('Audio playback ended, enabling recording after delay');
-            // 增加延遲確保音頻設備完全釋放
+            console.log('Audio ended, reinitializing speech recognition...');
+            // 確保音頻完全停止
+            audio.src = '';
+            audio.load();
+            audio.remove();
+            
+            // 延長等待時間並重新初始化語音識別
             setTimeout(() => {
-                console.log('Audio device should be ready for recording now');
-            }, 500);
+                console.log('Reinitializing speech recognition after audio...');
+                app.initSpeechRecognition();
+                console.log('Speech recognition reinitialized and ready');
+            }, 3000); // 延長到3秒確保設備完全釋放
         };
         
-audio.onerror = function(e) {
-            console.warn(`❌ 音檔載入失敗: ${audioFile}`, e);
-            alert('音檔無法播放，請檢查檔案路徑');
+        audio.onerror = function(e) {
+            console.warn(`音檔播放失敗: ${audioFile}`, e);
+            // 即使出錯也要重新初始化
+            setTimeout(() => {
+                app.initSpeechRecognition();
+            }, 1500);
         };
         
- audio.play().then(() => {
+        audio.onpause = function() {
+            console.log('Audio paused, preparing for speech recognition...');
+        };
+        
+        audio.play().then(() => {
             console.log('🎵 音檔播放成功');
         }).catch(error => {
             console.warn(`❌ 音檔播放失敗: ${audioFile}`, error);
-            alert('音檔無法播放，請檢查檔案路徑或瀏覽器設定');
+            // 播放失敗也要重新初始化
+            setTimeout(() => {
+                app.initSpeechRecognition();
+            }, 1500);
         });
     } else {
         console.log('❌ 沒有提供音檔');
-        alert('此項目沒有音檔，請確認 Excel 檔案中有設定音檔路徑');
+        // 沒有音檔時立即重新初始化
+        setTimeout(() => {
+            app.initSpeechRecognition();
+        }, 500);
     }
-}
+}	
+
 
 function speakWithTTS(text) {
     console.log('Using TTS for:', text);
@@ -1763,42 +1718,10 @@ function updatePracticeScreen() {
     app.updateRecordButton();
     app.resetTranscriptDisplay();
     
-// 重新綁定點擊事件
+    // 重新綁定點擊事件
     setTimeout(() => {
         app.bindWordClickEvents();
     }, 100);
-    
-    // 新增：同時更新兩張卡片的內容
-    updateCardContents();
-    
-    // 確保從聆聽卡開始
-    switchToCard('listen');
-}
-
-
-// 新增函數：更新卡片內容
-function updateCardContents() {
-    const item = app.getCurrentItem();
-    if (!item) return;
-    
-    const listenTitle = document.getElementById('listenTitle');
-    const practiceTitle = document.getElementById('practiceTitle');
-    
-    // 更新聆聽卡內容
-    if ('sentences' in item) {
-        const sentence = item.sentences[app.currentPartIndex];
-        const translation = item.translation ? `<div class="translation-text">${item.translation}</div>` : '';
-        
-        listenTitle.innerHTML = `${sentence}${translation}`;
-        practiceTitle.innerHTML = sentence.split(' ').map((word, index) => 
-            `<span class="word-default clickable-word" data-word-index="${index}">${word}</span>`
-        ).join(' ');
-    } else {
-        const meaningDisplay = item.meaning ? `<div class="translation-text">${item.meaning}</div>` : '';
-        	
-        listenTitle.innerHTML = `${item.example}${meaningDisplay}`;
-        practiceTitle.innerHTML = `<span class="word-default clickable-word" data-word-index="0">${item.example}</span>`;
-    }
 }
 
 // 更新導航按鈕狀態
@@ -1929,6 +1852,35 @@ function toggleRecording() {
     }
 }
 
+function resetSpeechRecognition() {
+    console.log('手動重置語音識別...');
+    
+    // 完全停止現有的語音識別
+    if (app.recognition) {
+        app.recognition.stop();
+        app.recognition = null;
+    }
+    
+    // 確保所有音頻停止
+    app.ensureAudioStopped();
+    
+    // 延遲後重新初始化
+    setTimeout(() => {
+        app.initSpeechRecognition();
+        app.resetTranscriptDisplay();
+        console.log('語音識別已手動重置完成');
+        
+        // 顯示成功提示
+        const transcriptArea = document.getElementById('transcriptArea');
+        if (transcriptArea) {
+            transcriptArea.innerHTML = '<p class="italic text-green-400 text-center">✅ 語音識別已重置，現在可以開始錄音了</p>';
+            setTimeout(() => {
+                app.resetTranscriptDisplay();
+            }, 2000);
+        }
+    }, 1000);
+}
+
 // 事件監聽器設定
 document.addEventListener('DOMContentLoaded', function() {
     console.log('頁面載入完成，開始初始化...');
@@ -1993,39 +1945,23 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
         renderList();
     });
     
+    // 練習頁面按鈕
+    document.getElementById('speakBtn').addEventListener('click', () => {
+        const item = app.getCurrentItem();
+        const practiceText = app.getCurrentPracticeText();
+        console.log('Debug - speakBtn clicked');
+        console.log('Debug - item:', item);
+        console.log('Debug - practiceText:', practiceText);
+        console.log('Debug - audioFile:', item ? item.audio : 'no item');
+        
+        if (practiceText && item) {
+            // 獲取音檔路徑
+            const audioFile = item.audio || '';
+            speakText(practiceText, audioFile);
+        }
+    });
 
-// 練習頁面按鈕 - 聆聽卡
-    const listenBtn = document.getElementById('listenBtn');
-    if (listenBtn) {
-        listenBtn.addEventListener('click', () => {
-            const item = app.getCurrentItem();
-            const practiceText = app.getCurrentPracticeText();
-            if (practiceText && item) {
-                const audioFile = item.audio || '';
-                speakText(practiceText, audioFile);
-            }
-        });
-    }
-
-    // 卡片切換按鈕
-    const startPracticeBtn = document.getElementById('startPracticeBtn');
-    if (startPracticeBtn) {
-        startPracticeBtn.addEventListener('click', () => {
-            switchToCard('practice');
-        });
-    }
-
-    const backToListenBtn = document.getElementById('backToListenBtn');
-    if (backToListenBtn) {
-        backToListenBtn.addEventListener('click', () => {
-            switchToCard('listen');
-        });
-    }
-
-    const recordBtn = document.getElementById('recordBtn');
-    if (recordBtn) {
-        recordBtn.addEventListener('click', toggleRecording);
-    }
+    document.getElementById('recordBtn').addEventListener('click', toggleRecording);
     
     // 練習導航
     document.getElementById('prevBtn').addEventListener('click', () => navigateItem(-1));
@@ -2054,5 +1990,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-window.switchToCard = switchToCard;
-
