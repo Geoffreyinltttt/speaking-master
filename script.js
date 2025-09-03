@@ -247,57 +247,6 @@ function showBrowserCompatibilityWarning() {
     }, 100);
 }
 
-
-showHTTPSWarning() {
-    const warningDiv = document.createElement('div');
-    warningDiv.id = 'httpsWarning';
-    warningDiv.className = 'fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
-    warningDiv.style.zIndex = '9999';
-    
-    warningDiv.innerHTML = `
-        <div class="glass-primary rounded-3xl p-8 max-w-md mx-4 text-center" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="text-amber-400 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2zM12 9a3 3 0 113 3 3 3 0 01-3-3zm0 0V5a3 3 0 00-3-3" />
-                </svg>
-            </div>
-            <h3 class="text-2xl font-bold text-white mb-4">需要安全連線</h3>
-            <p class="text-slate-300 mb-6 leading-relaxed">
-                語音識別功能需要 HTTPS 安全連線才能正常運作。<br>
-                請嘗試以下解決方案：
-            </p>
-            
-            <div class="text-left mb-6 space-y-2">
-                <div class="flex items-center gap-3 text-green-400">
-                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>使用 HTTPS 網站</span>
-                </div>
-                <div class="flex items-center gap-3 text-green-400">
-                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>在 localhost 環境測試</span>
-                </div>
-                <div class="flex items-center gap-3 text-green-400">
-                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>檢查麥克風權限設定</span>
-                </div>
-            </div>
-            
-            <button onclick="dismissHTTPSWarning()" class="w-full px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-semibold rounded-xl transition-all duration-300">
-                我知道了
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(warningDiv);
-}
-
-
 function proceedWithoutSpeech() {
     const warning = document.getElementById('browserWarning');
     if (warning) warning.remove();
@@ -488,19 +437,13 @@ class AppState {
         this.initSpeechRecognition();
     }
         
-initSpeechRecognition() {
-    // 檢查瀏覽器相容性
-    if (!checkBrowserCompatibility()) {
-        console.error('瀏覽器不支持語音識別');
-        return;
-    }
-    
-    // 檢查是否為 HTTPS 或 localhost
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        console.warn('語音識別需要 HTTPS 連線或在 localhost 環境下運行');
-        this.showHTTPSWarning();
-        return;
-    }        
+    initSpeechRecognition() {
+        // 檢查瀏覽器相容性
+        if (!checkBrowserCompatibility()) {
+            console.error('瀏覽器不支持語音識別');
+            return;
+        }
+        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
@@ -574,33 +517,23 @@ initSpeechRecognition() {
 
         
         this.recognition.onerror = (event) => {
-    let errorMsg = '';
-    let showAlert = true;
-    
-    switch(event.error) {
-        case 'no-speech':
-            errorMsg = '未偵測到語音，請再試一次。';
-            showAlert = false; // 這個錯誤不需要彈窗
-            break;
-        case 'audio-capture':
-            errorMsg = '無法取用麥克風。請檢查：\n1. 麥克風是否已連接\n2. 瀏覽器權限設定\n3. 其他應用程式是否占用麥克風';
-            break;
-        case 'not-allowed':
-            errorMsg = '麥克風權限被拒絕。請點擊網址列旁的麥克風圖示允許權限。';
-            break;
-        case 'network':
-            errorMsg = '網路連線問題，請檢查網路狀態。';
-            break;
-        default:
-            errorMsg = `語音識別發生錯誤: ${event.error}\n請嘗試重新整理頁面。`;
-    }
-    
-    console.error(errorMsg);
-    if (showAlert) {
-        alert(errorMsg);
-    }
-    this.stopListening();
-};
+            let errorMsg = '';
+            switch(event.error) {
+                case 'no-speech':
+                    errorMsg = '未偵測到語音，請再試一次。';
+                    break;
+                case 'audio-capture':
+                    errorMsg = '無法取用麥克風。請檢查權限設定。';
+                    break;
+                case 'not-allowed':
+                    errorMsg = '麥克風權限被拒絕。';
+                    break;
+                default:
+                    errorMsg = `發生錯誤: ${event.error}`;
+            }
+            console.error(errorMsg);
+            this.stopListening();
+        };
         
         this.recognition.onend = () => {
             this.isListening = false;
@@ -1702,13 +1635,6 @@ function startPractice(index, from = 'list') {
 
 // 更新練習螢幕
 function updatePracticeScreen() {
-    // 只加這一段，其他先不加
-    document.querySelectorAll('audio').forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.remove();
-    });
-    
     // 清理之前的回饋內容
     document.getElementById('detailedFeedback')?.remove();
     document.getElementById('clickHint')?.remove();
@@ -2000,7 +1926,7 @@ document.getElementById('vocabularyType').addEventListener('click', () => {
     
     // 初始化應用
     showScreen('loadingScreen');
-});	
+});
 
 // 全域函數（供 HTML onclick 使用）
 window.startPractice = startPractice;
@@ -2011,8 +1937,3 @@ window.proceedWithoutSpeech = proceedWithoutSpeech;
 window.dismissWarning = dismissWarning;
 window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
-
-window.dismissHTTPSWarning = function() {
-    const warning = document.getElementById('httpsWarning');
-    if (warning) warning.remove();
-};
