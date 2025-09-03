@@ -1474,13 +1474,30 @@ function switchToCard(cardType) {
         app.currentCard = 'listen';
         
     } else if (cardType === 'practice') {
-        // 完全清理聆聽卡的所有功能
+        // 更強力的音頻清理
         app.ensureAudioStopped();
         
-        // 重新初始化語音識別
+        // 強制停止所有可能的音頻
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.src = '';
+            audio.load();
+            audio.remove();
+        });
+        
+        // 等待更長時間確保設備完全釋放
         setTimeout(() => {
-            app.resetSpeechRecognition();
-        }, 500);
+            // 完全重新初始化語音識別
+            if (app.recognition) {
+                app.recognition.stop();
+                app.recognition = null;
+            }
+            
+            setTimeout(() => {
+                app.initSpeechRecognition();
+                console.log('語音識別已重新初始化');
+            }, 1000);
+        }, 1500);
         
         // 顯示練習卡
         listenCard.classList.add('hidden');
@@ -1493,7 +1510,6 @@ function switchToCard(cardType) {
         app.resetTranscriptDisplay();
     }
 }
-
 
 // 全域應用狀態
 const app = new AppState();
