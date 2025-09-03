@@ -505,15 +505,19 @@ function processTextSheet(data) {
 // 應用狀態
 class AppState {
     constructor() {
-        this.currentScreen = 'modeSelection';
-        this.mode = null; // 'practice' | 'challenge'
-        this.contentType = null; // 'vocabulary' | 'passage'
-        this.currentIndex = 0;
-        this.currentPartIndex = 0;
-        this.from = 'list'; // 'list' | 'favorites'
-        this.challengeQuestions = [];
-        this.challengeAnswers = [];
-        this.currentQuestionIndex = 0;
+    this.currentScreen = 'modeSelection';
+    this.mode = null; // 'practice' | 'challenge'
+    this.contentType = null; // 'vocabulary' | 'passage'
+    this.currentIndex = 0;
+    this.currentPartIndex = 0;
+    this.from = 'list'; // 'list' | 'favorites'
+    this.challengeQuestions = [];
+    this.challengeAnswers = [];
+    this.currentQuestionIndex = 0;
+    
+    // 新增的挑戰相關屬性
+    this.challengeType = null; // 'vocabulary' | 'passage' | 'mixed'
+    this.currentChallengeType = null; // 保存當前挑戰類型用於重新測驗
         
         // 語音識別相關
         this.recognition = null;
@@ -844,10 +848,24 @@ class AppState {
             }
         }
         
-        // 如果是挑戰模式，顯示下一題按鈕
-        if (this.currentScreen === 'challengeScreen') {
-            document.getElementById('nextBtn').classList.remove('hidden');
-        }
+// 如果是挑戰模式，記錄答案並檢查是否完成
+if (app.mode === 'challenge') {
+    // 記錄當前答案
+    app.challengeAnswers[app.currentQuestionIndex] = {
+        question: app.challengeQuestions[app.currentQuestionIndex],
+        userAnswer: this.transcript,
+        score: this.comparisonResult.score,
+        isCorrect: this.comparisonResult.isCorrect
+    };
+    
+    // 檢查是否為最後一題
+    if (app.currentQuestionIndex === app.challengeQuestions.length - 1) {
+        // 延遲顯示結果，讓用戶看到回饋
+        setTimeout(() => {
+            showChallengeResults();
+        }, 3000);
+    }
+}
     }
 
     // 顯示句子回饋（簡化版，自動顯示在上方）
@@ -1823,6 +1841,16 @@ function updatePracticeScreen() {
         partNavigation.classList.add('hidden');
     }
     
+
+// 新增：挑戰模式進度顯示
+const challengeProgressDisplay = document.getElementById('challengeProgressDisplay');
+if (app.mode === 'challenge') {
+    challengeProgressDisplay.textContent = `第 ${app.currentQuestionIndex + 1} 題 / 10 題`;
+    challengeProgressDisplay.classList.remove('hidden');
+} else {
+    challengeProgressDisplay.classList.add('hidden');
+}
+
     // 更新導航按鈕狀態
     updateNavigationButtons();
     
@@ -1898,41 +1926,111 @@ function navigatePart(direction) {
     }
 }
 
-// 挑戰模式功能
-function startChallenge() {
-    app.mode = 'challenge';
-    app.contentType = 'mixed'; // 混合模式
+
+// 顯示挑戰結果
+function showChallengeResults() {
+    const totalQuestions = app.challengeQuestions.length;
+    const correctAnswers = app.challengeAnswers.filter(answer => answer.score >= 60).length;
+    const averageScore = app.challengeAnswers.length > 0 
+        ? Math.round(app.challengeAnswers.reduce((sum, answer) => sum + answer.score, 0) / app.challengeAnswers.length)
+        : 0;
     
-    // 收集所有內容並標記類型
+    // 更新基本信息
+    document.getElementById('averageScore').innerHTML = `${averageScore} <span class="text-2xl text-slate-400">平均分</span>`;
+    document.getElementById('correctCount').textContent = `您答對了 ${correctAnswers} / ${totalQuestions} 題。`;
+    
+    // 根據成績顯示不同的慶祝訊息和徽章
+    const congratsMessage = document.getElementById('congratsMessage');
+    const performanceBadge = document.getElementById('performanceBadge');
+    
+    if (averageScore >= 90) {
+        congratsMessage.textContent = '太棒了！您的發音非常標準！';
+        performanceBadge.className = 'inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-yellow-500 text-yellow-900';
+        performanceBadge.textContent = '🏆 完美表現';
+    } else if (averageScore >= 80) {
+        congratsMessage.textContent = '很好！繼續保持這個水準！';
+        performanceBadge.className = 'inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-green-500 text-green-900';
+        performanceBadge.textContent = '⭐ 優秀表現';
+    } else if (averageScore >= 70) {
+        congratsMessage.textContent = '不錯的表現！再多練習會更好！';
+        performanceBadge.className = 'inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-blue-500 text-blue-900';
+        performanceBadge.textContent = '👍 良好表現';
+    } else {
+        congratsMessage.textContent = '繼續努力！多多練習一定會進步的！';
+        performanceBadge.className = 'inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-orange-500 text-orange-900';
+        performanceBadge.textContent = '💪 加油努力';
+    }
+    
+    // 顯示詳細結果
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = app.challengeAnswers.map((answer, index) => {
+        const icon = answer.score >= 60 ? '✅' : '❌';
+        const scoreColor = answer.score >= 80 ? 'text-green-400' : answer.score >= 60 ? 'text-yellow-400' : 'text-red-400';
+        return `
+            <li class="flex justify-between items-center p-2 bg-slate-800/30 rounded-lg">
+                <span class="flex items-center gap-2">
+                    <span>${icon}</span>
+                    <span class="text-slate-300">第${index + 1}題</span>
+                </span>
+                <span class="${scoreColor} font-semibold">${answer.score}分</span>
+            </li>
+        `;
+    }).join('');
+    
+    showScreen('challengeResult');
+}
+
+
+// 挑戰類型選擇
+function selectChallengeType(type) {
+    app.challengeType = type;
+    app.currentChallengeType = type; // 保存用於重新測驗
+    startChallengeWithType(type);
+}
+
+// 開始指定類型的挑戰
+function startChallengeWithType(type) {
+    app.mode = 'challenge';
+    app.challengeType = type;
+    
     let allItems = [];
     
-    // 加入單字
-    vocabulary.forEach(item => {
-        allItems.push({
-            ...item,
-            type: 'vocabulary'
-        });
-    });
-    
-    // 加入片語
-    idioms.forEach(item => {
-        allItems.push({
-            ...item,
-            type: 'idioms'
-        });
-    });
-    
-    // 加入課文（保持原有結構）
-    passages.forEach(passage => {
-        allItems.push({
-            ...passage,
-            type: 'passage'
-        });
-    });
+    switch (type) {
+        case 'vocabulary':
+            // 只包含單字和片語
+            vocabulary.forEach(item => {
+                allItems.push({ ...item, type: 'vocabulary' });
+            });
+            idioms.forEach(item => {
+                allItems.push({ ...item, type: 'idioms' });
+            });
+            break;
+            
+        case 'passage':
+            // 只包含課文
+            passages.forEach(passage => {
+                allItems.push({ ...passage, type: 'passage' });
+            });
+            break;
+            
+        case 'mixed':
+            // 混合所有類型
+            vocabulary.forEach(item => {
+                allItems.push({ ...item, type: 'vocabulary' });
+            });
+            idioms.forEach(item => {
+                allItems.push({ ...item, type: 'idioms' });
+            });
+            passages.forEach(passage => {
+                allItems.push({ ...passage, type: 'passage' });
+            });
+            break;
+    }
     
     // 隨機打亂順序並選擇10題
     const shuffled = allItems.sort(() => 0.5 - Math.random());
-    app.challengeQuestions = shuffled.slice(0, 10); // 限制為10題
+    app.challengeQuestions = shuffled.slice(0, Math.min(10, shuffled.length));
+    app.challengeAnswers = []; // 重置答案記錄
     app.currentQuestionIndex = 0;
     
     // 重置狀態
@@ -1942,6 +2040,18 @@ function startChallenge() {
     
     showScreen('practiceScreen');
     updatePracticeScreen();
+}
+
+// 重新當前類型的挑戰
+function retryCurrentChallenge() {
+    if (app.currentChallengeType) {
+        startChallengeWithType(app.currentChallengeType);
+    }
+}
+
+// 開始新的挑戰（返回類型選擇）
+function startNewChallenge() {
+    showScreen('challengeTypeSelection');
 }
 
 // 錄音控制
@@ -1977,47 +2087,56 @@ document.addEventListener('DOMContentLoaded', function() {
     // 自動載入數據
     loadDataFromFile();
     
-    // 模式選擇
-    document.getElementById('practiceMode').addEventListener('click', () => {
-        if (!dataLoaded) {
-            alert('數據尚未載入完成，請稍候');
-            return;
-        }
-        app.mode = 'practice';
-        document.getElementById('contentModeTitle').textContent = '練習模式';
-        showScreen('contentTypeSelection');
-    });
-    
-    document.getElementById('challengeMode').addEventListener('click', () => {
-        if (!dataLoaded) {
-            alert('數據尚未載入完成，請稍候');
-            return;
-        }
-        startChallenge();
-    });
-    
-    // 內容類型選擇
-    document.getElementById('vocabularyType').addEventListener('click', () => {
-        app.resetAllStates();
-        app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge(); // 挑戰模式不分類型
-        }
-    });
+// 模式選擇
+document.getElementById('practiceMode').addEventListener('click', () => {
+    if (!dataLoaded) {
+        alert('數據尚未載入完成，請稍候');
+        return;
+    }
+    app.mode = 'practice';
+    document.getElementById('contentModeTitle').textContent = '練習模式';
+    showScreen('contentTypeSelection');
+});
 
-    document.getElementById('passageType').addEventListener('click', () => {
-        app.resetAllStates();
-        app.contentType = 'passage';
-        if (app.mode === 'practice') {
-            showScreen('listView');
-            renderList();
-        } else {
-            startChallenge(); // 挑戰模式不分類型
-        }
-    });
+document.getElementById('challengeMode').addEventListener('click', () => {
+    if (!dataLoaded) {
+        alert('數據尚未載入完成，請稍候');
+        return;
+    }
+    showScreen('challengeTypeSelection');
+});
+
+// 挑戰類型選擇
+document.getElementById('vocabChallengeBtn').addEventListener('click', () => selectChallengeType('vocabulary'));
+document.getElementById('passageChallengeBtn').addEventListener('click', () => selectChallengeType('passage'));
+document.getElementById('mixedChallengeBtn').addEventListener('click', () => selectChallengeType('mixed'));
+
+// 返回按鈕
+document.getElementById('backToChallengeMain').addEventListener('click', () => showScreen('modeSelection'));
+
+// 內容類型選擇
+document.getElementById('vocabularyType').addEventListener('click', () => {
+    app.resetAllStates();
+    app.contentType = 'vocabulary'; // 仍使用 vocabulary，但會包含單字和片語
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
+
+document.getElementById('passageType').addEventListener('click', () => {
+    app.resetAllStates();
+    app.contentType = 'passage';
+    if (app.mode === 'practice') {
+        showScreen('listView');
+        renderList();
+    } else {
+        startChallenge(); // 挑戰模式不分類型
+    }
+});
+
     
     // 導航按鈕
     document.getElementById('homeBtn').addEventListener('click', () => showScreen('modeSelection'));
@@ -2051,13 +2170,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('prevPartBtn').addEventListener('click', () => navigatePart(-1));
     document.getElementById('nextPartBtn').addEventListener('click', () => navigatePart(1));
     
-    // 挑戰結果頁面按鈕
-    document.getElementById('backToMainBtn').addEventListener('click', () => showScreen('modeSelection'));
-    document.getElementById('retryChallengeBtn').addEventListener('click', () => {
-        if (app.contentType) {
-            startChallenge(app.contentType);
-        }
-    });
+// 挑戰結果頁面按鈕
+document.getElementById('retryCurrentChallengeBtn').addEventListener('click', retryCurrentChallenge);
+document.getElementById('newChallengeBtn').addEventListener('click', startNewChallenge);
+document.getElementById('backToMainBtn').addEventListener('click', () => showScreen('modeSelection'));
     
     // 初始化應用
     showScreen('loadingScreen');
@@ -2074,3 +2190,8 @@ window.continueWithFirefox = continueWithFirefox;
 window.dismissFirefoxWarning = dismissFirefoxWarning;
 window.continueWithCurrentBrowser = continueWithCurrentBrowser;
 window.dismissEdgeRecommendation = dismissEdgeRecommendation;
+window.selectChallengeType = selectChallengeType;
+window.retryCurrentChallenge = retryCurrentChallenge;
+window.startNewChallenge = startNewChallenge;
+window.showChallengeResults = showChallengeResults;
+
